@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Retro Kart Adventure — 3D Arcade Racer</title>
+  <meta name="description" content="A colorful 3D browser arcade racing game with procedural tracks, customizable karts, and retro synthesized audio.">
+  
+  <!-- PWA configurations -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00f2fe">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Premium Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Importmap for Three.js -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Global Console Error Catcher Overlay -->
+  <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(18, 0, 0, 0.95); color:#ff4444; z-index:999999; padding:30px; font-family:monospace; overflow-y:auto; font-size:14px; line-height:1.5; pointer-events:auto; border:3px solid #ff1111;">
+    <h2 style="color:#ff3333; margin-bottom:15px; border-bottom:1px solid #551111; padding-bottom:10px;">🛑 Runtime JavaScript Error Detected</h2>
+    <pre id="error-msg" style="white-space:pre-wrap; word-break:break-all;"></pre>
+  </div>
+  <script>
+    window.addEventListener('error', function(e) {
+      document.getElementById('error-overlay').style.display = 'block';
+      document.getElementById('error-msg').textContent += 
+        '\n❌ Error: ' + e.message + 
+        '\n📍 File: ' + e.filename + ':' + e.lineno + ':' + e.colno + 
+        '\n🥞 Stack:\n' + (e.error ? e.error.stack : 'No stack trace') + '\n';
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      document.getElementById('error-overlay').style.display = 'block';
+      document.getElementById('error-msg').textContent += 
+        '\n❌ Unhandled Promise Rejection: ' + e.reason + 
+        '\n🥞 Stack:\n' + (e.reason && e.reason.stack ? e.reason.stack : 'No stack trace') + '\n';
+    });
+  </script>
+
+  <!-- Canvas for 3D Game Render -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Interactive Overlays -->
+  <div id="ui-container">
+    
+    <!-- 1. LOADING SCREEN -->
+    <div id="loading-screen" class="screen active">
+      <div class="glass-card loading-box">
+        <h1 class="neon-text-blue">RETRO KART</h1>
+        <h2 class="neon-text-gold">ADVENTURE</h2>
+        <div class="spinner"></div>
+        <p id="loading-text">Generating procedurally structured files...</p>
+      </div>
+    </div>
+
+    <!-- 2. MAIN MENU -->
+    <div id="main-menu" class="screen">
+      <div class="logo-container">
+        <h1 class="logo-title neon-text-blue">RETRO KART</h1>
+        <h2 class="logo-subtitle neon-text-gold">ADVENTURE</h2>
+      </div>
+
+      <div class="menu-actions">
+        <button id="btn-start-game" class="btn btn-primary neon-btn-blue">PLAY NOW</button>
+        <button id="btn-open-garage" class="btn btn-secondary neon-btn-gold">GARAGE / CUSTOMIZE</button>
+        <button id="btn-open-worlds" class="btn btn-secondary">SELECT WORLD</button>
+      </div>
+
+      <div class="menu-footer">
+        <div class="audio-control-bar">
+          <button id="btn-toggle-audio" class="audio-btn">
+            <span class="icon">🔊</span> Music: ON
+          </button>
+        </div>
+        <p class="controls-hint">WASD / Arrow Keys to drive. Space to Drift.</p>
+      </div>
+    </div>
+
+    <!-- 3. WORLD SELECT SCREEN -->
+    <div id="world-select-screen" class="screen">
+      <div class="glass-card full-width-card">
+        <div class="card-header">
+          <button id="btn-worlds-back" class="btn-back">← Back</button>
+          <h2>Choose Your World</h2>
+        </div>
+        
+        <div class="worlds-grid" id="worlds-container">
+          <!-- Dynamically populated in game.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. GARAGE / CUSTOMIZATION SCREEN -->
+    <div id="garage-screen" class="screen">
+      <div class="garage-panel-left glass-card">
+        <div class="card-header">
+          <button id="btn-garage-back" class="btn-back">← Menu</button>
+          <h2>Customize Kart</h2>
+        </div>
+
+        <div class="coins-display">
+          Coins: <span id="garage-coins" class="gold-text">0</span> 🪙
+        </div>
+
+        <div class="tabs-container">
+          <button class="tab-btn active" data-tab="paint">Paint</button>
+          <button class="tab-btn" data-tab="tires">Tires</button>
+          <button class="tab-btn" data-tab="engine">Engine</button>
+          <button class="tab-btn" data-tab="cosmetics">Extras</button>
+        </div>
+
+        <div class="tab-content active" id="tab-paint">
+          <h3>Body Color</h3>
+          <div class="grid-presets">
+            <button class="color-swatch active" style="background: #e63946;" data-color="#e63946"></button>
+            <button class="color-swatch" style="background: #3a86c8;" data-color="#3a86c8"></button>
+            <button class="color-swatch" style="background: #ffbe0b;" data-color="#ffbe0b"></button>
+            <button class="color-swatch" style="background: #06d6a0;" data-color="#06d6a0"></button>
+            <button class="color-swatch" style="background: #8338ec;" data-color="#8338ec"></button>
+            <button class="color-swatch" style="background: #ff007f;" data-color="#ff007f"></button>
+            <button class="color-swatch" style="background: #222831;" data-color="#222831"></button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-tires">
+          <h3>Upgrade Wheels</h3>
+          <div class="upgrade-list">
+            <div class="upgrade-item" data-type="tires" data-id="basic" data-cost="0">
+              <span class="upgrade-name">Standard Slicks</span>
+              <button class="btn btn-sm btn-action equipped">Equipped</button>
+            </div>
+            <div class="upgrade-item" data-type="tires" data-id="sport" data-cost="150">
+              <span class="upgrade-name">Racing Radials (+Handling)</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 150 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="tires" data-id="neon" data-cost="300">
+              <span class="upgrade-name">Neon Glow Wheels (+Style)</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 300 🪙</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-engine">
+          <h3>Engine Upgrades</h3>
+          <div class="upgrade-list">
+            <div class="upgrade-item" data-type="engine" data-id="basic" data-cost="0">
+              <span class="upgrade-name">Standard 150cc</span>
+              <button class="btn btn-sm btn-action equipped">Equipped</button>
+            </div>
+            <div class="upgrade-item" data-type="engine" data-id="v6" data-cost="200">
+              <span class="upgrade-name">V6 Tuning (+Acceleration)</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 200 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="engine" data-id="turbo" data-cost="400">
+              <span class="upgrade-name">Hyper Turbo (+Max Speed)</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 400 🪙</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-cosmetics">
+          <h3>Rear Spoiler</h3>
+          <div class="upgrade-list">
+            <div class="upgrade-item" data-type="spoiler" data-id="none" data-cost="0">
+              <span class="upgrade-name">No Spoiler</span>
+              <button class="btn btn-sm btn-action equipped">Equipped</button>
+            </div>
+            <div class="upgrade-item" data-type="spoiler" data-id="wing" data-cost="100">
+              <span class="upgrade-name">F1 Wing</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 100 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="underglow" data-id="glow" data-cost="250">
+              <span class="upgrade-name">Neon Underglow</span>
+              <button class="btn btn-sm btn-action btn-buy">Buy 250 🪙</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="garage-panel-right">
+        <!-- Text or helpers overlaying the 3D preview -->
+        <div class="stats-card glass-card">
+          <h3>Kart Performance</h3>
+          <div class="stat-bar-container">
+            <span class="stat-label">Max Speed</span>
+            <div class="stat-bar"><div class="stat-fill" id="stat-speed-fill" style="width: 50%;"></div></div>
+          </div>
+          <div class="stat-bar-container">
+            <span class="stat-label">Acceleration</span>
+            <div class="stat-bar"><div class="stat-fill" id="stat-accel-fill" style="width: 40%;"></div></div>
+          </div>
+          <div class="stat-bar-container">
+            <span class="stat-label">Traction/Handling</span>
+            <div class="stat-bar"><div class="stat-fill" id="stat-steer-fill" style="width: 60%;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. RACE HUD -->
+    <div id="race-hud" class="screen">
+      <!-- Top Left: Race Progress -->
+      <div class="hud-top-left glass-card">
+        <div class="hud-item"><span class="hud-label">WORLD:</span> <span id="hud-world" class="hud-value">Mushroom Valley</span></div>
+        <div class="hud-item"><span class="hud-label">LAP:</span> <span id="hud-lap" class="hud-value">1 / 3</span></div>
+        <div class="hud-item"><span class="hud-label">POS:</span> <span id="hud-pos" class="hud-value">1st / 4</span></div>
+      </div>
+
+      <!-- Top Right: Item Slot & Coins -->
+      <div class="hud-top-right glass-card">
+        <div class="hud-item"><span class="hud-label">COINS:</span> <span id="hud-coins" class="hud-value text-gold">0</span> 🪙</div>
+        <div class="hud-item item-slot-container">
+          <div id="hud-item-slot" class="item-slot empty">
+            <!-- Icon/Label of active power-up -->
+          </div>
+          <div class="hud-sub-label">Press <span class="key-indicator">Shift</span> to Use</div>
+        </div>
+      </div>
+
+      <!-- Center Countdown -->
+      <div id="countdown-overlay" class="countdown-text hidden">3</div>
+
+      <!-- Speedometer & Indicators (Bottom) -->
+      <div class="hud-bottom">
+        <div class="drift-meter-container">
+          <div class="drift-bar"><div class="drift-fill" id="drift-bar-fill" style="width: 0%;"></div></div>
+          <div class="drift-label" id="drift-txt">DRIFT</div>
+        </div>
+
+        <div class="hud-speedometer-box glass-card">
+          <div class="speed-value" id="hud-speed">0</div>
+          <div class="speed-unit">KM/H</div>
+        </div>
+        
+        <button id="btn-pause-game" class="btn-pause">⏸</button>
+      </div>
+
+      <!-- On-Screen Touch Controls for Mobile/Tablet Players -->
+      <div id="mobile-controls" class="hud-touch-controls">
+        <div class="steer-buttons">
+          <button id="btn-touch-left" class="touch-btn steer-btn">◀</button>
+          <button id="btn-touch-right" class="touch-btn steer-btn">▶</button>
+        </div>
+        
+        <div class="action-buttons">
+          <button id="btn-touch-use" class="touch-btn action-btn use-btn">🚀 USE</button>
+          <button id="btn-touch-drift" class="touch-btn action-btn drift-btn">💨 DRIFT</button>
+        </div>
+        
+        <div class="pedal-buttons">
+          <button id="btn-touch-brake" class="touch-btn pedal-btn brake-btn">▼</button>
+          <button id="btn-touch-gas" class="touch-btn pedal-btn gas-btn">▲</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. PAUSE MENU -->
+    <div id="pause-menu" class="screen">
+      <div class="glass-card dialog-box">
+        <h2>GAME PAUSED</h2>
+        <div class="pause-actions">
+          <button id="btn-resume-race" class="btn btn-primary">Resume</button>
+          <button id="btn-restart-race" class="btn btn-secondary">Restart</button>
+          <button id="btn-quit-race" class="btn btn-danger">Exit to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. GAME OVER / VICTORY SCREEN -->
+    <div id="game-over-screen" class="screen">
+      <div class="glass-card victory-box text-center">
+        <h1 id="victory-title" class="neon-text-gold">VICTORY!</h1>
+        <h3 id="victory-subtitle">You finished 1st!</h3>
+        
+        <div class="rewards-summary">
+          <div class="reward-row">
+            <span>Coins Collected:</span>
+            <span id="reward-coins-collected" class="gold-text">+12 🪙</span>
+          </div>
+          <div class="reward-row">
+            <span>Finishing Bonus:</span>
+            <span id="reward-finish-bonus" class="gold-text">+50 🪙</span>
+          </div>
+          <hr class="separator">
+          <div class="reward-row total-row">
+            <span>Total Earned:</span>
+            <span id="reward-total" class="gold-text">+62 🪙</span>
+          </div>
+        </div>
+
+        <div id="unlock-notification" class="unlock-notif hidden">
+          🎉 <span id="unlock-text">Lava Volcano unlocked!</span>
+        </div>
+
+        <div class="game-over-actions">
+          <button id="btn-victory-continue" class="btn btn-primary">Continue</button>
+          <button id="btn-victory-retry" class="btn btn-secondary">Race Again</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Game Logic Modules -->
+  <script type="module" src="src/game.js"></script>
+
+  <!-- PWA Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('Service Worker registered successfully!', reg.scope))
+          .catch((err) => console.warn('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
