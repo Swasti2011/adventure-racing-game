@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 
 // World theme configurations
-export const WORLDS = [
+const CLASSIC_WORLDS = [
   {
     id: 'mushroom',
+    baseTheme: 'mushroom',
     name: 'Mushroom Valley',
     themeColor: '#06d6a0',
     fogColor: '#bde0fe',
@@ -14,6 +15,7 @@ export const WORLDS = [
   },
   {
     id: 'lava',
+    baseTheme: 'lava',
     name: 'Lava Volcano',
     themeColor: '#e63946',
     fogColor: '#2b0909',
@@ -24,6 +26,7 @@ export const WORLDS = [
   },
   {
     id: 'desert',
+    baseTheme: 'desert',
     name: 'Desert Oasis',
     themeColor: '#e9c46a',
     fogColor: '#f4a261',
@@ -34,6 +37,7 @@ export const WORLDS = [
   },
   {
     id: 'candy',
+    baseTheme: 'candy',
     name: 'Candy Kingdom',
     themeColor: '#ff007f',
     fogColor: '#ffccd5',
@@ -44,6 +48,7 @@ export const WORLDS = [
   },
   {
     id: 'jungle',
+    baseTheme: 'jungle',
     name: 'Jungle Ruins',
     themeColor: '#ffbe0b',
     fogColor: '#1a3020',
@@ -54,6 +59,7 @@ export const WORLDS = [
   },
   {
     id: 'ice',
+    baseTheme: 'ice',
     name: 'Ice Mountain',
     themeColor: '#00f2fe',
     fogColor: '#e0f7fa',
@@ -64,6 +70,7 @@ export const WORLDS = [
   },
   {
     id: 'cyber',
+    baseTheme: 'cyber',
     name: 'Neon Grid City',
     themeColor: '#00f2fe',
     fogColor: '#0c0714',
@@ -74,6 +81,7 @@ export const WORLDS = [
   },
   {
     id: 'ghost',
+    baseTheme: 'ghost',
     name: 'Haunted Manor',
     themeColor: '#8338ec',
     fogColor: '#110a18',
@@ -84,6 +92,7 @@ export const WORLDS = [
   },
   {
     id: 'rainbow',
+    baseTheme: 'rainbow',
     name: 'Rainbow Sky Roads',
     themeColor: '#8338ec',
     fogColor: '#03001e',
@@ -93,6 +102,114 @@ export const WORLDS = [
     locked: true
   }
 ];
+
+const ADJECTIVES = [
+  "Neo", "Cyber", "Crimson", "Cosmic", "Frozen", "Golden", "Emerald", "Shadow", "Mystic", "Sunset", "Sapphire", 
+  "Toxic", "Radioactive", "Obsidian", "Thunder", "Hollow", "Whispering", "Shimmering", "Glacial", "Radiant", 
+  "Haunted", "Bubblegum", "Solar", "Astral", "Lunar", "Rust", "Velvet", "Quartz", "Electric", "Wild", 
+  "Prismatic", "Glitch", "Plasma", "Bionic", "Spectra", "Chrono", "Techno", "Vortex", "Nebula", "Solstice", "Vibrant"
+];
+
+const NOUNS = [
+  "Canyon", "Volcano", "Ruins", "Oasis", "Valley", "Grid", "City", "Skyway", "Runway", "Cave", "Glacier", 
+  "Peak", "Abyss", "Plains", "Castle", "Swamps", "Jungle", "Desert", "Spire", "Station", "Nexus", "Maze", 
+  "Speedway", "Highway", "Gardens", "Dunes", "Cliffs", "Reef", "Lagoon", "Orbit", "Sanctuary", "Fortress", 
+  "Sector", "Labyrinth", "Tundra", "Cathedral", "Ridge", "Bayou", "Outpost"
+];
+
+const GENERATED_WORLDS = [];
+const usedNames = new Set(CLASSIC_WORLDS.map(w => w.name.toLowerCase()));
+const BASE_THEME_KEYS = ['mushroom', 'lava', 'desert', 'candy', 'jungle', 'ice', 'cyber', 'ghost', 'rainbow'];
+
+function seedRandom(seed) {
+  return function() {
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+}
+
+function hslToHex(h, s, l) {
+  l /= 100;
+  const a = s * Math.min(l, 1 - l) / 100;
+  const f = n => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Generate remaining 16 worlds (10 to 25)
+for (let i = 10; i <= 25; i++) {
+  let seedVal = i * 823;
+  let rand = seedRandom(seedVal);
+  
+  const primaryIdx = (i - 10) % BASE_THEME_KEYS.length;
+  let secondaryIdx = (i - 10 + 3) % BASE_THEME_KEYS.length;
+  if (primaryIdx === secondaryIdx) {
+    secondaryIdx = (secondaryIdx + 1) % BASE_THEME_KEYS.length;
+  }
+  
+  const baseTheme = BASE_THEME_KEYS[primaryIdx];
+  const secondaryTheme = BASE_THEME_KEYS[secondaryIdx];
+  
+  let name = "";
+  let attempts = 0;
+  while (attempts < 100) {
+    const adj = ADJECTIVES[Math.floor(rand() * ADJECTIVES.length)];
+    const noun = NOUNS[Math.floor(rand() * NOUNS.length)];
+    name = `${adj} ${noun}`;
+    if (!usedNames.has(name.toLowerCase())) {
+      usedNames.add(name.toLowerCase());
+      break;
+    }
+    seedVal += 17;
+    rand = seedRandom(seedVal);
+    attempts++;
+  }
+  
+  // Procedural custom color blending
+  // Generate random base hues
+  const primaryHue = Math.floor(rand() * 360);
+  const secondaryHue = (primaryHue + 100 + Math.floor(rand() * 100)) % 360;
+  
+  // Custom saturation and lightness to keep them vibrant but legible
+  const themeColor = hslToHex(primaryHue, 90, 50);
+  const accentColor = hslToHex(secondaryHue, 95, 55);
+  
+  let groundColor;
+  let fogColor;
+  
+  // Let the ground color be a dark/medium variant of primaryHue (or black if rainbow is involved)
+  if (baseTheme === 'rainbow' || secondaryTheme === 'rainbow') {
+    groundColor = '#000000';
+    fogColor = hslToHex(secondaryHue, 80, 5); // very dark space fog
+  } else {
+    // Blended ground color
+    groundColor = hslToHex(primaryHue, Math.floor(35 + rand() * 25), Math.floor(12 + rand() * 15));
+    // Blended fog color
+    fogColor = hslToHex(secondaryHue, Math.floor(40 + rand() * 25), Math.floor(10 + rand() * 12));
+  }
+  
+  const desc = `A hybrid campaign world blending ${baseTheme} elements and ${secondaryTheme} details, named ${name}.`;
+
+  GENERATED_WORLDS.push({
+    id: `world_${i}`,
+    baseTheme: baseTheme,
+    secondaryTheme: secondaryTheme,
+    name: name,
+    themeColor: themeColor,
+    fogColor: fogColor,
+    groundColor: groundColor,
+    accentColor: accentColor,
+    description: desc,
+    locked: true
+  });
+}
+
+export const WORLDS = [...CLASSIC_WORLDS, ...GENERATED_WORLDS];
 
 export class TrackManager {
   constructor(scene) {
@@ -121,6 +238,9 @@ export class TrackManager {
     this.onBoostActivated = null;
     this.onItemBoxCollected = null;
     this.onHazardHit = null;
+    
+    // Lap sign
+    this.lapSignTexture = null;
   }
 
   generate(worldId) {
@@ -128,33 +248,21 @@ export class TrackManager {
     const config = WORLDS.find(w => w.id === worldId) || WORLDS[0];
 
     // Set scene fog
-    this.scene.fog = new THREE.FogExp2(config.fogColor, worldId === 'rainbow' ? 0.002 : 0.005);
+    this.scene.fog = new THREE.FogExp2(config.fogColor, config.baseTheme === 'rainbow' ? 0.002 : 0.005);
     
     // Create spline points
     const points = [];
-    const numControlPoints = 12;
-    const baseRadius = worldId === 'rainbow' ? 180 : 160;
+    const numControlPoints = 16;
     
     for (let i = 0; i < numControlPoints; i++) {
       const angle = (i / numControlPoints) * Math.PI * 2;
       
-      // Start line straightaway (keep flat and perfectly circular)
-      let radius = baseRadius;
-      let yOffset = 0;
-      
-      if (i > 1 && i < numControlPoints - 1) {
-        // Add random bumps and curves along the track
-        radius += (Math.random() * 70) - 35;
-        yOffset = (Math.random() * 26) - 13;
-        
-        // Lava levels have higher mountains, ice has smoother slopes
-        if (worldId === 'lava') yOffset *= 1.8;
-        if (worldId === 'ice') yOffset *= 0.7;
-      }
-      
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      points.push(new THREE.Vector3(x, yOffset, z));
+      // Perfect Oval Track for all worlds
+      const A = 220; // Major axis (length)
+      const B = 110; // Minor axis (width)
+      const x = Math.cos(angle) * A;
+      const z = Math.sin(angle) * B;
+      points.push(new THREE.Vector3(x, 0, z)); // flat track
     }
     
     // Create smooth closed spline
@@ -168,6 +276,9 @@ export class TrackManager {
     
     // Populate items
     this.spawnTrackItems(config);
+    
+    // Create Stadium Gantry / Referee Sign
+    this.createGantryAndReferee(config);
   }
 
   createRoadMesh(config) {
@@ -180,10 +291,15 @@ export class TrackManager {
     // Calculate Frenet frames along spline
     const frames = this.curve.computeFrenetFrames(count, false);
     
+    const barrierMatTheme = new THREE.MeshPhongMaterial({ color: config.themeColor || '#e63946', flatShading: true });
+    const barrierMatAccent = new THREE.MeshPhongMaterial({ color: config.accentColor || '#ffffff', flatShading: true });
+    const barrierGeom = new THREE.BoxGeometry(0.6, 0.8, 4.5);
+    
     for (let i = 0; i <= count; i++) {
       const t = i / count;
       const point = this.curve.getPointAt(t);
       const binormal = frames.binormals[i];
+      const tangent = frames.tangents[i];
       
       // Compute left and right edge positions
       const leftPt = point.clone().addScaledVector(binormal, -this.roadWidth / 2);
@@ -195,6 +311,34 @@ export class TrackManager {
       // UV coordinates
       uvs.push(0, t * 25);
       uvs.push(1, t * 25);
+      
+      // Spawn side barriers for all worlds
+      if (i % 2 === 0 && i < count) {
+        const isPrimary = (i % 4 === 0);
+        const mat = isPrimary ? barrierMatTheme : barrierMatAccent;
+        
+        // Left barrier
+        const bL = new THREE.Mesh(barrierGeom, mat);
+        bL.position.copy(leftPt).addScaledVector(binormal, -0.4);
+        bL.position.y += 0.4;
+        const lookTargetL = bL.position.clone().add(tangent);
+        bL.lookAt(lookTargetL);
+        bL.castShadow = true;
+        bL.receiveShadow = true;
+        this.scene.add(bL);
+        this.decorations.push(bL);
+        
+        // Right barrier
+        const bR = new THREE.Mesh(barrierGeom, mat);
+        bR.position.copy(rightPt).addScaledVector(binormal, 0.4);
+        bR.position.y += 0.4;
+        const lookTargetR = bR.position.clone().add(tangent);
+        bR.lookAt(lookTargetR);
+        bR.castShadow = true;
+        bR.receiveShadow = true;
+        this.scene.add(bR);
+        this.decorations.push(bR);
+      }
     }
     
     // Build index list for triangles
@@ -214,11 +358,11 @@ export class TrackManager {
     geom.computeVertexNormals();
 
     // Create Procedural Canvas Road Texture
-    const roadTexture = this.generateRoadTexture(config.id);
+    const roadTexture = this.generateRoadTexture(config.baseTheme);
     
     const mat = new THREE.MeshPhongMaterial({
       map: roadTexture,
-      shininess: config.id === 'lava' || config.id === 'rainbow' ? 80 : 15,
+      shininess: config.baseTheme === 'lava' || config.baseTheme === 'rainbow' ? 80 : 15,
       side: THREE.DoubleSide,
       flatShading: true
     });
@@ -321,7 +465,7 @@ export class TrackManager {
   // --- ENVIRONMENT DECORATIONS CREATOR ---
 
   createEnvironment(config) {
-    const isRainbow = config.id === 'rainbow';
+    const isRainbow = config.baseTheme === 'rainbow';
     
     // 1. Skybox Sphere
     const skyGeom = new THREE.SphereGeometry(600, 32, 15);
@@ -344,26 +488,42 @@ export class TrackManager {
       });
       this.groundMesh = new THREE.Mesh(groundGeom, groundMat);
       this.groundMesh.rotation.x = -Math.PI / 2;
-      this.groundMesh.position.y = -20; // Sit below the tracks
+      this.groundMesh.position.y = -0.05; // Sit flat under tracks
       this.groundMesh.receiveShadow = true;
       this.scene.add(this.groundMesh);
     }
 
-    if (config.id === 'lava') {
-      // Bubbling lava pool below road
+    if (config.baseTheme === 'lava') {
+      // Bubbling lava pool overlay slightly above the ground plane
       const lavaGeom = new THREE.PlaneGeometry(900, 900);
       const lavaMat = new THREE.MeshBasicMaterial({
         color: '#ff3300',
         transparent: true,
-        opacity: 0.85
+        opacity: 0.45
       });
       this.lavaPlane = new THREE.Mesh(lavaGeom, lavaMat);
       this.lavaPlane.rotation.x = -Math.PI / 2;
-      this.lavaPlane.position.y = -19.5;
+      this.lavaPlane.position.y = -0.04;
       this.scene.add(this.lavaPlane);
     }
 
-    // Place environment items randomly around the track
+    // 3. Place 8 grandstands around the track for all worlds
+    const grandstandCount = 8;
+    for (let i = 0; i < grandstandCount; i++) {
+      const t = i / grandstandCount;
+      const centerPt = this.curve.getPointAt(t);
+      const tangent = this.curve.getTangentAt(t);
+      const binormal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      
+      // Place on the outside (binormal direction)
+      const distance = 42;
+      const pos = centerPt.clone().addScaledVector(binormal, distance);
+      pos.y = 0;
+      
+      this.createGrandstand(pos, tangent, config);
+    }
+
+    // 4. Place environment items randomly around the track for all worlds, pushed further back
     const itemsCount = 180;
     for (let i = 0; i < itemsCount; i++) {
       const t = i / itemsCount;
@@ -372,18 +532,16 @@ export class TrackManager {
       
       // Pick a side (left or right of the track)
       const side = Math.random() < 0.5 ? -1 : 1;
-      const distance = 20 + Math.random() * 45; // Place clear of the road ribbon
+      const distance = 60 + Math.random() * 30; // Push further back to clear the grandstands
       
       // Calculate right vector
       const right = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
       const pos = centerPt.clone().addScaledVector(right, side * distance);
       
-      // Drop decoration height onto the virtual ground
-      if (!isRainbow) {
-        pos.y = -20;
-      }
+      pos.y = 0; // Sit on flat stadium ground
       
-      const decoration = this.createDecorationMesh(config.id, pos);
+      const decTheme = (config.secondaryTheme && Math.random() < 0.55) ? config.secondaryTheme : config.baseTheme;
+      const decoration = this.createDecorationMesh(decTheme, pos);
       if (decoration) {
         this.scene.add(decoration);
         this.decorations.push(decoration);
@@ -709,7 +867,7 @@ export class TrackManager {
   // --- COLLECTIBLES & HAZARDS SPAWNER ---
 
   spawnTrackItems(config) {
-    const isRainbow = config.id === 'rainbow';
+    const isRainbow = config.baseTheme === 'rainbow';
     
     // Reset lists
     this.coins = [];
@@ -823,14 +981,14 @@ export class TrackManager {
       }
       
       // 4. Spawn Obstacles/Hazards (e.g. Lava flows or static crates)
-      if (i % 29 === 19 && config.id !== 'rainbow') {
+      if (i % 29 === 19 && config.baseTheme !== 'rainbow') {
         const sideOffset = ((Math.random() * 0.6) - 0.3) * this.roadWidth;
         const pos = centerPt.clone().addScaledVector(right, sideOffset);
         pos.y += 1.0;
         
         const hazardGeom = new THREE.BoxGeometry(2, 2, 2);
         const hazardMat = new THREE.MeshPhongMaterial({
-          color: config.id === 'lava' ? '#ff3300' : '#8d6e63',
+          color: config.baseTheme === 'lava' ? '#ff3300' : '#8d6e63',
           flatShading: true
         });
         const crate = new THREE.Mesh(hazardGeom, hazardMat);
@@ -981,6 +1139,289 @@ export class TrackManager {
   }
 
   // Clear scene of all track assets
+  createGrandstand(position, tangent, config) {
+    const group = new THREE.Group();
+    group.position.copy(position);
+    
+    // Look at track center
+    const lookTarget = position.clone().add(tangent);
+    group.lookAt(lookTarget);
+    
+    // 1. Concrete Base (tiered steps)
+    const baseMat = new THREE.MeshPhongMaterial({ color: '#555555', flatShading: true });
+    
+    // Tier 1 (lowest)
+    const t1Geom = new THREE.BoxGeometry(22, 1.2, 5);
+    const t1 = new THREE.Mesh(t1Geom, baseMat);
+    t1.position.set(0, 0.6, 0);
+    t1.castShadow = true;
+    t1.receiveShadow = true;
+    group.add(t1);
+    
+    // Tier 2
+    const t2Geom = new THREE.BoxGeometry(22, 2.4, 5);
+    const t2 = new THREE.Mesh(t2Geom, baseMat);
+    t2.position.set(0, 1.2, -4.5);
+    t2.castShadow = true;
+    t2.receiveShadow = true;
+    group.add(t2);
+    
+    // Tier 3
+    const t3Geom = new THREE.BoxGeometry(22, 3.6, 5);
+    const t3 = new THREE.Mesh(t3Geom, baseMat);
+    t3.position.set(0, 1.8, -9);
+    t3.castShadow = true;
+    t3.receiveShadow = true;
+    group.add(t3);
+    
+    // 2. Pillars and Canopy Roof
+    const pillarGeom = new THREE.CylinderGeometry(0.15, 0.15, 7);
+    const pillarMat = new THREE.MeshPhongMaterial({ color: '#cccccc' });
+    
+    // Left pillar
+    const pL = new THREE.Mesh(pillarGeom, pillarMat);
+    pL.position.set(-10, 3.5, 2);
+    group.add(pL);
+    
+    // Right pillar
+    const pR = pL.clone();
+    pR.position.x = 10;
+    group.add(pR);
+    
+    // Back Left pillar
+    const pBL = new THREE.Mesh(pillarGeom, pillarMat);
+    pBL.position.set(-10, 4.5, -11);
+    group.add(pBL);
+    
+    // Back Right pillar
+    const pBR = pBL.clone();
+    pBR.position.x = 10;
+    group.add(pBR);
+    
+    // Canopy Roof
+    const roofGeom = new THREE.BoxGeometry(24, 0.4, 15);
+    const roofMat = new THREE.MeshPhongMaterial({ color: config.themeColor, flatShading: true });
+    const roof = new THREE.Mesh(roofGeom, roofMat);
+    roof.position.set(0, 7.2, -4.5);
+    roof.rotation.x = -0.06;
+    roof.castShadow = true;
+    group.add(roof);
+    
+    // Colorful Flags on roof
+    const flagPoleGeom = new THREE.CylinderGeometry(0.06, 0.06, 2.5);
+    const flagGeom = new THREE.BoxGeometry(1.2, 0.6, 0.05);
+    const flagMat = new THREE.MeshBasicMaterial({ color: config.accentColor });
+    
+    [-9, 0, 9].forEach(flagX => {
+      const pole = new THREE.Mesh(flagPoleGeom, pillarMat);
+      pole.position.set(flagX, 8.5, -4.5);
+      group.add(pole);
+      
+      const flag = new THREE.Mesh(flagGeom, flagMat);
+      flag.position.set(flagX + 0.6, 9.5, -4.5);
+      group.add(flag);
+    });
+    
+    // 3. Populate Little Mushroom/Toad Spectators on the seats!
+    const seatColors = ['#ff0000', '#00f2fe', '#ffbe0b', '#06d6a0', '#8338ec'];
+    const specBodyGeom = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 4);
+    const specBodyMat = new THREE.MeshPhongMaterial({ color: '#f5f5f5', flatShading: true });
+    
+    for (let tier = 1; tier <= 3; tier++) {
+      const zOffset = -(tier - 1) * 4.5;
+      const yOffset = tier * 1.2 + 0.25;
+      
+      for (let seatIdx = 0; seatIdx < 5; seatIdx++) {
+        if (Math.random() < 0.25) continue;
+        
+        const xOffset = -8 + seatIdx * 4 + (Math.random() * 0.8 - 0.4);
+        
+        const spectator = new THREE.Group();
+        spectator.position.set(xOffset, yOffset, zOffset);
+        
+        // Body
+        const body = new THREE.Mesh(specBodyGeom, specBodyMat);
+        spectator.add(body);
+        
+        // Toad Mushroom Cap
+        const capMat = new THREE.MeshPhongMaterial({
+          color: seatColors[Math.floor(Math.random() * seatColors.length)],
+          flatShading: true
+        });
+        const capGeom = new THREE.SphereGeometry(0.35, 4, 4);
+        const cap = new THREE.Mesh(capGeom, capMat);
+        cap.position.y = 0.45;
+        cap.scale.y = 0.8;
+        spectator.add(cap);
+        
+        spectator.rotation.y = Math.random() * 0.4 - 0.2;
+        group.add(spectator);
+      }
+    }
+    
+    this.scene.add(group);
+    this.decorations.push(group);
+  }
+
+  createGantryAndReferee(config) {
+    const t = 0.04;
+    const centerPt = this.curve.getPointAt(t);
+    const tangent = this.curve.getTangentAt(t);
+    const binormal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+    
+    const leftPt = centerPt.clone().addScaledVector(binormal, -this.roadWidth / 2 - 1.2);
+    const rightPt = centerPt.clone().addScaledVector(binormal, this.roadWidth / 2 + 1.2);
+    
+    const gantryGroup = new THREE.Group();
+    
+    // Gantry Columns
+    const pillarGeom = new THREE.CylinderGeometry(0.25, 0.35, 12, 6);
+    const pillarMat = new THREE.MeshPhongMaterial({ color: '#555555', metalness: 0.6, flatShading: true });
+    
+    const colL = new THREE.Mesh(pillarGeom, pillarMat);
+    colL.position.copy(leftPt);
+    colL.position.y += 6;
+    colL.castShadow = true;
+    gantryGroup.add(colL);
+    
+    const colR = new THREE.Mesh(pillarGeom, pillarMat);
+    colR.position.copy(rightPt);
+    colR.position.y += 6;
+    colR.castShadow = true;
+    gantryGroup.add(colR);
+    
+    // Horizontal Beam
+    const beamGeom = new THREE.BoxGeometry(this.roadWidth + 3, 0.6, 0.6);
+    const beam = new THREE.Mesh(beamGeom, pillarMat);
+    beam.position.copy(centerPt);
+    beam.position.y += 11.5;
+    beam.lookAt(centerPt.clone().add(tangent));
+    beam.rotation.y += Math.PI / 2; // crosswise
+    gantryGroup.add(beam);
+    
+    // Cloud
+    const cloud = new THREE.Group();
+    cloud.position.copy(centerPt);
+    cloud.position.addScaledVector(binormal, -3.5);
+    cloud.position.y += 13.5;
+    
+    const cloudMat = new THREE.MeshPhongMaterial({ color: '#ffffff', flatShading: true, shininess: 10 });
+    const s1 = new THREE.Mesh(new THREE.SphereGeometry(1.0, 5, 5), cloudMat);
+    s1.position.set(0, 0, 0);
+    cloud.add(s1);
+    const s2 = new THREE.Mesh(new THREE.SphereGeometry(0.7, 5, 5), cloudMat);
+    s2.position.set(-0.8, -0.2, 0.3);
+    cloud.add(s2);
+    const s3 = new THREE.Mesh(new THREE.SphereGeometry(0.7, 5, 5), cloudMat);
+    s3.position.set(0.8, -0.2, -0.3);
+    cloud.add(s3);
+    const s4 = new THREE.Mesh(new THREE.SphereGeometry(0.6, 5, 5), cloudMat);
+    s4.position.set(0.2, 0.4, 0.4);
+    cloud.add(s4);
+    
+    gantryGroup.add(cloud);
+    
+    // Jeffrey Character (Referee)
+    const jeffrey = new THREE.Group();
+    jeffrey.position.copy(centerPt);
+    jeffrey.position.addScaledVector(binormal, -3.5);
+    jeffrey.position.y += 14.5;
+    
+    // Body (Yellow)
+    const jBody = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.7, 5), new THREE.MeshPhongMaterial({ color: '#ffbe0b', flatShading: true }));
+    jeffrey.add(jBody);
+    
+    // Shell (Green box on back)
+    const jShell = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.5, 0.2), new THREE.MeshPhongMaterial({ color: '#06d6a0', flatShading: true }));
+    jShell.position.set(0, 0, -0.25);
+    jeffrey.add(jShell);
+    
+    // Head (Yellow sphere)
+    const jHead = new THREE.Mesh(new THREE.SphereGeometry(0.24, 5, 5), new THREE.MeshPhongMaterial({ color: '#ffbe0b', flatShading: true }));
+    jHead.position.set(0, 0.5, 0);
+    jeffrey.add(jHead);
+    
+    // Glasses
+    const lensMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+    [-0.1, 0.1].forEach(glassX => {
+      const lens = new THREE.Mesh(new THREE.SphereGeometry(0.08, 4, 4), lensMat);
+      lens.position.set(glassX, 0.52, 0.2);
+      jeffrey.add(lens);
+    });
+    
+    gantryGroup.add(jeffrey);
+    
+    // Lap sign hanging from gantry center
+    const signGroup = new THREE.Group();
+    signGroup.position.copy(centerPt);
+    signGroup.position.y += 10.0;
+    
+    // Hanging cables
+    const cableMat = new THREE.MeshBasicMaterial({ color: '#111111' });
+    const cableGeom = new THREE.CylinderGeometry(0.02, 0.02, 1.5);
+    [-2, 2].forEach(cX => {
+      const cable = new THREE.Mesh(cableGeom, cableMat);
+      cable.position.set(cX, 0.75, 0);
+      signGroup.add(cable);
+    });
+    
+    // Sign board
+    const boardGeom = new THREE.BoxGeometry(5.0, 1.8, 0.15);
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 64;
+    
+    this.lapSignTexture = new THREE.CanvasTexture(canvas);
+    const boardMat = new THREE.MeshPhongMaterial({
+      map: this.lapSignTexture,
+      shininess: 40,
+      flatShading: true
+    });
+    
+    const board = new THREE.Mesh(boardGeom, boardMat);
+    board.position.set(0, -0.2, 0);
+    signGroup.add(board);
+    
+    // Align sign facing along track tangent
+    signGroup.lookAt(centerPt.clone().add(tangent));
+    signGroup.rotation.y += Math.PI / 2; // face oncoming karts
+    
+    gantryGroup.add(signGroup);
+    this.scene.add(gantryGroup);
+    this.decorations.push(gantryGroup);
+    
+    // Initialize sign
+    this.updateLapSign(1);
+  }
+
+  updateLapSign(lapNumber) {
+    if (!this.lapSignTexture) return;
+    const canvas = this.lapSignTexture.image;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    // Clear and redraw
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(0, 0, 128, 64);
+    
+    ctx.strokeStyle = '#ffbe0b';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, 124, 60);
+    
+    ctx.fillStyle = '#ffbe0b';
+    ctx.font = 'bold 20px Courier';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    let text = `LAP ${lapNumber}`;
+    if (lapNumber === 3) text = "FINAL LAP";
+    if (lapNumber > 3) text = "FINISH";
+    
+    ctx.fillText(text, 64, 32);
+    
+    this.lapSignTexture.needsUpdate = true;
+  }
+
   clear() {
     if (this.roadMesh) this.scene.remove(this.roadMesh);
     if (this.skybox) this.scene.remove(this.skybox);

@@ -1,5 +1,260 @@
 import * as THREE from 'three';
 
+// Procedurally builds a 3D Low-Poly Driver Character (e.g. Mario) sitting in the kart
+function createDriverMesh(colorPreset) {
+  const driverGroup = new THREE.Group();
+  
+  // Detect character theme based on color preset
+  let shirtColor = '#e63946'; // Red
+  let overallsColor = '#0033aa'; // Blue
+  let capColor = '#e63946'; // Red
+  let capWhiteCircle = true;
+  let toadMushroomCap = false;
+  let hairColor = '#5c4033'; // Brown
+  
+  const color = colorPreset.toLowerCase();
+  
+  if (color === '#06d6a0' || color === '#38b000' || color === '#70e000') {
+    // Luigi
+    shirtColor = '#06d6a0';
+    overallsColor = '#0033aa';
+    capColor = '#06d6a0';
+  } else if (color === '#8338ec' || color === '#ff007f') {
+    // Waluigi / Peach themed
+    shirtColor = '#8338ec';
+    overallsColor = '#111111'; // Dark/Black overalls
+    capColor = '#8338ec';
+    hairColor = '#4b2d12';
+  } else if (color === '#ffbe0b' || color === '#e9c46a') {
+    // Wario
+    shirtColor = '#ffbe0b'; // Yellow
+    overallsColor = '#8338ec'; // Purple
+    capColor = '#ffbe0b';
+  } else if (color === '#00f2fe' || color === '#ffffff') {
+    // Toad
+    shirtColor = '#ffffff';
+    overallsColor = '#0033aa'; // blue vest/pants
+    toadMushroomCap = true;
+  }
+  
+  // 1. Torso
+  // Upper body (Shirt)
+  const torsoGeom = new THREE.BoxGeometry(0.8, 0.7, 0.6);
+  const torsoMat = new THREE.MeshPhongMaterial({ color: shirtColor, flatShading: true });
+  const torso = new THREE.Mesh(torsoGeom, torsoMat);
+  torso.position.set(0, 1.25, -0.4);
+  torso.castShadow = true;
+  driverGroup.add(torso);
+  
+  // Overalls straps/pants
+  if (!toadMushroomCap) {
+    const pantsGeom = new THREE.BoxGeometry(0.82, 0.35, 0.62);
+    const overallsMat = new THREE.MeshPhongMaterial({ color: overallsColor, flatShading: true });
+    const pants = new THREE.Mesh(pantsGeom, overallsMat);
+    pants.position.set(0, 1.05, -0.4);
+    pants.castShadow = true;
+    driverGroup.add(pants);
+    
+    // Left Strap
+    const strapLGeom = new THREE.BoxGeometry(0.16, 0.75, 0.05);
+    const strapL = new THREE.Mesh(strapLGeom, overallsMat);
+    strapL.position.set(-0.25, 1.35, -0.1);
+    driverGroup.add(strapL);
+    
+    // Right Strap
+    const strapR = strapL.clone();
+    strapR.position.x = 0.25;
+    driverGroup.add(strapR);
+    
+    // Yellow Overall Buttons
+    const btnGeom = new THREE.BoxGeometry(0.08, 0.08, 0.02);
+    const btnMat = new THREE.MeshBasicMaterial({ color: '#ffbe0b' });
+    const btnL = new THREE.Mesh(btnGeom, btnMat);
+    btnL.position.set(-0.25, 1.15, -0.07);
+    driverGroup.add(btnL);
+    
+    const btnR = btnL.clone();
+    btnR.position.x = 0.25;
+    driverGroup.add(btnR);
+  } else {
+    // Toad Vest (Blue with Gold border)
+    const vestGeom = new THREE.BoxGeometry(0.84, 0.5, 0.64);
+    const vestMat = new THREE.MeshPhongMaterial({ color: overallsColor, flatShading: true });
+    const vest = new THREE.Mesh(vestGeom, vestMat);
+    vest.position.set(0, 1.3, -0.4);
+    driverGroup.add(vest);
+    
+    const goldTrimGeom = new THREE.BoxGeometry(0.86, 0.1, 0.66);
+    const goldTrimMat = new THREE.MeshBasicMaterial({ color: '#ffbe0b' });
+    const trim = new THREE.Mesh(goldTrimGeom, goldTrimMat);
+    trim.position.set(0, 1.1, -0.4);
+    driverGroup.add(trim);
+  }
+  
+  // 2. Head
+  const headGeom = new THREE.SphereGeometry(0.35, 6, 6);
+  const headMat = new THREE.MeshPhongMaterial({ color: '#ffcc99', flatShading: true });
+  const head = new THREE.Mesh(headGeom, headMat);
+  head.position.set(0, 1.78, -0.4);
+  head.castShadow = true;
+  driverGroup.add(head);
+  
+  // Hair (back of head)
+  const hairGeom = new THREE.BoxGeometry(0.68, 0.35, 0.35);
+  const hairMat = new THREE.MeshPhongMaterial({ color: hairColor, flatShading: true });
+  const hair = new THREE.Mesh(hairGeom, hairMat);
+  hair.position.set(0, 1.7, -0.55);
+  driverGroup.add(hair);
+  
+  // Nose
+  const noseGeom = new THREE.SphereGeometry(0.12, 4, 4);
+  const nose = new THREE.Mesh(noseGeom, headMat);
+  nose.position.set(0, 1.78, -0.07);
+  driverGroup.add(nose);
+  
+  // Eyes
+  const eyeGeom = new THREE.BoxGeometry(0.06, 0.08, 0.02);
+  const eyeMat = new THREE.MeshBasicMaterial({ color: '#0000ff' });
+  
+  const eyeL = new THREE.Mesh(eyeGeom, eyeMat);
+  eyeL.position.set(-0.12, 1.83, -0.08);
+  driverGroup.add(eyeL);
+  
+  const eyeR = eyeL.clone();
+  eyeR.position.x = 0.12;
+  driverGroup.add(eyeR);
+  
+  // Mustache (only for Mario, Luigi, Waluigi, Wario - not Toad!)
+  if (!toadMushroomCap) {
+    const mustacheGeom = new THREE.BoxGeometry(0.35, 0.1, 0.08);
+    const mustacheMat = new THREE.MeshPhongMaterial({ color: hairColor, flatShading: true });
+    const mustache = new THREE.Mesh(mustacheGeom, mustacheMat);
+    mustache.position.set(0, 1.66, -0.07);
+    driverGroup.add(mustache);
+  }
+  
+  // 3. Cap
+  if (!toadMushroomCap) {
+    // Red/Green/Purple Cap dome
+    const capGeom = new THREE.SphereGeometry(0.38, 6, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const capMat = new THREE.MeshPhongMaterial({ color: capColor, flatShading: true });
+    const cap = new THREE.Mesh(capGeom, capMat);
+    cap.position.set(0, 1.95, -0.4);
+    cap.scale.y = 0.85;
+    cap.castShadow = true;
+    driverGroup.add(cap);
+    
+    // Visor/Brim
+    const visorGeom = new THREE.BoxGeometry(0.62, 0.08, 0.25);
+    const visor = new THREE.Mesh(visorGeom, capMat);
+    visor.position.set(0, 1.96, -0.22);
+    visor.rotation.x = 0.1;
+    driverGroup.add(visor);
+    
+    // White Emblem circle
+    if (capWhiteCircle) {
+      const emblemCircleGeom = new THREE.BoxGeometry(0.18, 0.18, 0.02);
+      const emblemCircleMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
+      const emblem = new THREE.Mesh(emblemCircleGeom, emblemCircleMat);
+      emblem.position.set(0, 2.05, -0.15);
+      
+      // Little 'M' / 'L' / 'W' symbol inside emblem
+      let letterColor = '#e63946';
+      if (color === '#06d6a0') letterColor = '#06d6a0'; // L
+      if (color === '#ffbe0b') letterColor = '#8338ec'; // W
+      if (color === '#8338ec') letterColor = '#ffeb3b'; // Waluigi yellow Γ
+      
+      const letterGeom = new THREE.BoxGeometry(0.08, 0.08, 0.03);
+      const letterMat = new THREE.MeshBasicMaterial({ color: letterColor });
+      const letter = new THREE.Mesh(letterGeom, letterMat);
+      letter.position.set(0, 2.05, -0.14);
+      
+      driverGroup.add(emblem);
+      driverGroup.add(letter);
+    }
+  } else {
+    // Toad Mushroom Cap (large white dome with red spots)
+    const mushroomCapGeom = new THREE.SphereGeometry(0.62, 8, 8);
+    const mushroomCapMat = new THREE.MeshPhongMaterial({ color: '#ffffff', flatShading: true });
+    const mushroomCap = new THREE.Mesh(mushroomCapGeom, mushroomCapMat);
+    mushroomCap.position.set(0, 2.2, -0.4);
+    mushroomCap.scale.set(1.1, 0.9, 1.1);
+    mushroomCap.castShadow = true;
+    driverGroup.add(mushroomCap);
+    
+    // Red spots
+    const spotGeom = new THREE.SphereGeometry(0.2, 4, 4);
+    const spotMat = new THREE.MeshBasicMaterial({ color: '#ff0000' });
+    
+    const spotOffsets = [
+      { x: 0, y: 2.7, z: -0.4 },      // Top
+      { x: 0.5, y: 2.3, z: -0.4 },    // Right
+      { x: -0.5, y: 2.3, z: -0.4 },   // Left
+      { x: 0, y: 2.3, z: 0.1 },       // Front
+      { x: 0, y: 2.3, z: -0.9 }       // Back
+    ];
+    
+    spotOffsets.forEach(offset => {
+      const spot = new THREE.Mesh(spotGeom, spotMat);
+      spot.position.set(offset.x, offset.y, offset.z);
+      driverGroup.add(spot);
+    });
+  }
+  
+  // 4. Arms & Hands holding wheel
+  const armGeom = new THREE.BoxGeometry(0.18, 0.18, 0.65);
+  const gloveGeom = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+  const gloveMat = new THREE.MeshPhongMaterial({ color: '#ffffff', flatShading: true });
+  
+  // Left arm
+  const armL = new THREE.Mesh(armGeom, torsoMat);
+  armL.position.set(-0.35, 1.25, 0.05);
+  armL.rotation.set(-0.2, 0.35, 0);
+  driverGroup.add(armL);
+  
+  const gloveL = new THREE.Mesh(gloveGeom, gloveMat);
+  gloveL.position.set(-0.25, 1.15, 0.38);
+  driverGroup.add(gloveL);
+  
+  // Right arm
+  const armR = new THREE.Mesh(armGeom, torsoMat);
+  armR.position.set(0.35, 1.25, 0.05);
+  armR.rotation.set(-0.2, -0.35, 0);
+  driverGroup.add(armR);
+  
+  const gloveR = new THREE.Mesh(gloveGeom, gloveMat);
+  gloveR.position.set(0.25, 1.15, 0.38);
+  driverGroup.add(gloveR);
+  
+  // 5. Legs & Shoes
+  const legGeom = new THREE.BoxGeometry(0.22, 0.22, 0.7);
+  const legMat = new THREE.MeshPhongMaterial({ color: overallsColor, flatShading: true });
+  const shoeGeom = new THREE.BoxGeometry(0.25, 0.2, 0.35);
+  const shoeMat = new THREE.MeshPhongMaterial({ color: '#4e2f1d', flatShading: true });
+  
+  // Left Leg
+  const legL = new THREE.Mesh(legGeom, legMat);
+  legL.position.set(-0.25, 0.8, -0.1);
+  legL.rotation.x = 0.2;
+  driverGroup.add(legL);
+  
+  const shoeL = new THREE.Mesh(shoeGeom, shoeMat);
+  shoeL.position.set(-0.25, 0.65, 0.28);
+  driverGroup.add(shoeL);
+  
+  // Right Leg
+  const legR = new THREE.Mesh(legGeom, legMat);
+  legR.position.set(0.25, 0.8, -0.1);
+  legR.rotation.x = 0.2;
+  driverGroup.add(legR);
+  
+  const shoeR = new THREE.Mesh(shoeGeom, shoeMat);
+  shoeR.position.set(0.25, 0.65, 0.28);
+  driverGroup.add(shoeR);
+  
+  return driverGroup;
+}
+
 // Procedurally builds a 3D Low-Poly Kart Model
 export function createKartMesh(colorPreset = '#e63946', upgrades = {}) {
   const group = new THREE.Group();
@@ -132,6 +387,30 @@ export function createKartMesh(colorPreset = '#e63946', upgrades = {}) {
     group.add(tube);
   }
 
+  // 4. Steering Wheel and Column
+  const steeringGroup = new THREE.Group();
+  steeringGroup.position.set(0, 0.9, 0.45);
+  
+  const columnGeom = new THREE.CylinderGeometry(0.05, 0.05, 1.1);
+  columnGeom.rotateX(Math.PI / 3); // angled column
+  const columnMat = new THREE.MeshPhongMaterial({ color: '#333333', flatShading: true });
+  const column = new THREE.Mesh(columnGeom, columnMat);
+  column.position.set(0, 0.15, -0.15);
+  steeringGroup.add(column);
+  
+  const wheelRimGeom = new THREE.TorusGeometry(0.35, 0.08, 4, 8);
+  const wheelRimMat = new THREE.MeshPhongMaterial({ color: '#111111', flatShading: true });
+  const wheelRim = new THREE.Mesh(wheelRimGeom, wheelRimMat);
+  wheelRim.position.set(0, 0.55, 0.15);
+  wheelRim.rotation.x = Math.PI / 6; // tilted wheel
+  steeringGroup.add(wheelRim);
+  
+  group.add(steeringGroup);
+
+  // 5. Driver
+  const driver = createDriverMesh(colorPreset);
+  group.add(driver);
+
   return group;
 }
 
@@ -240,6 +519,7 @@ export class PlayerKart {
       
       // Face starting direction
       this.heading = Math.atan2(tangent.x, tangent.z);
+      this.closestT = 0.04;
     }
     
     if (this.mesh) {
@@ -715,12 +995,17 @@ export class AiKart {
   }
 
   reset() {
-    this.t = 0.04 - (this.index * 0.012); // Grid placement behind player but ahead of start line
+    // Staggered double-column grid layout
+    const row = Math.floor((this.index + 1) / 2);
+    this.t = 0.04 - (row * 0.012);
     if (this.t < 0) this.t += 1.0;
     
-    this.completedLaps = 0;
+    this.completedLaps = this.t > 0.5 ? -1 : 0;
     this.spinTimer = 0;
-    this.lateralOffset = (this.index - 2) * 4.0; // distribute on grid
+    
+    // Left/Right staggered positioning
+    const side = (this.index % 2 === 1) ? -1 : 1;
+    this.lateralOffset = side * 3.5;
     this.lateralTarget = this.lateralOffset;
     
     this.updatePosition(0);

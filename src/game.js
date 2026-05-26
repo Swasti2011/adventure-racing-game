@@ -543,7 +543,8 @@ class GameManager {
     this.trackManager.generate(this.activeWorldId);
     
     // Position Audio theme
-    audioEngine.setTheme(this.activeWorldId);
+    const activeWorld = WORLDS.find(w => w.id === this.activeWorldId) || WORLDS[0];
+    audioEngine.setTheme(activeWorld.baseTheme || activeWorld.id);
     
     // Reset player
     this.player.reset();
@@ -551,15 +552,16 @@ class GameManager {
     this.updateItemSlotUI();
     document.getElementById('hud-coins').innerText = 0;
     document.getElementById('hud-lap').innerText = '1 / 3';
+    this.trackManager.updateLapSign(1);
     document.getElementById('hud-world').innerText = WORLDS.find(w => w.id === this.activeWorldId).name;
     
-    // Build AI Racers (3 total)
+    // Build AI Racers (7 total)
     this.clearAiRacers();
-    const colors = ['#06d6a0', '#ff007f', '#8338ec', '#00f2fe'];
-    const aiColors = colors.filter(c => c !== this.currentKartColor).slice(0, 3);
+    const colors = ['#06d6a0', '#ff007f', '#8338ec', '#00f2fe', '#ffbe0b', '#e63946', '#ffffff', '#ff9f1c'];
+    const aiColors = colors.filter(c => c.toLowerCase() !== this.currentKartColor.toLowerCase()).slice(0, 7);
     
-    for (let i = 0; i < 3; i++) {
-      const ai = new AiKart(this.scene, this.trackManager, i + 1, aiColors[i]);
+    for (let i = 0; i < 7; i++) {
+      const ai = new AiKart(this.scene, this.trackManager, i + 1, aiColors[i] || '#cccccc');
       ai.init();
       this.aiRacers.push(ai);
     }
@@ -650,6 +652,7 @@ class GameManager {
   triggerRaceFinished() {
     this.raceActive = false;
     audioEngine.setEngineActive(false);
+    this.trackManager.updateLapSign(4); // "FINISH"
     
     // Determine player rank position
     const racers = [
@@ -664,13 +667,13 @@ class GameManager {
     });
     
     const rank = racers.findIndex(r => r.id === 'player') + 1;
-    const rankSuffixes = ['st', 'nd', 'rd', 'th'];
-    const rankStr = `${rank}${rankSuffixes[rank - 1]}`;
+    const rankSuffix = ['st', 'nd', 'rd'][rank - 1] || 'th';
+    const rankStr = `${rank}${rankSuffix}`;
     
     // Compute reward coins
     const coinsCollected = this.player.coinsCount;
-    // Rank bonus: 1st=100, 2nd=60, 3rd=30, 4th=10
-    const finishBonus = [100, 60, 30, 10][rank - 1] || 10;
+    // Rank bonus: 1st=100, 2nd=60, 3rd=30, 4th=20, 5th=15, 6th=10, 7th=5, 8th=2
+    const finishBonus = [100, 60, 30, 20, 15, 10, 5, 2][rank - 1] || 2;
     const totalEarned = coinsCollected + finishBonus;
     
     this.coins += totalEarned;
@@ -802,6 +805,7 @@ class GameManager {
         // Lap trigger gate crossing start-line (t wraps from 0.95 -> 0.05)
         if (oldProgress > 0.85 && lapProgress < 0.15) {
           this.player.completedLaps++;
+          this.trackManager.updateLapSign(this.player.completedLaps + 1);
           if (this.player.completedLaps >= 3) {
             this.triggerRaceFinished();
           } else {
@@ -819,8 +823,8 @@ class GameManager {
           return b.t - a.t;
         });
         const playerRank = positions.findIndex(r => r.id === 'player') + 1;
-        const suffix = ['st', 'nd', 'rd', 'th'][playerRank - 1] || 'th';
-        document.getElementById('hud-pos').innerText = `${playerRank}${suffix} / 4`;
+        const suffix = ['st', 'nd', 'rd'][playerRank - 1] || 'th';
+        document.getElementById('hud-pos').innerText = `${playerRank}${suffix} / ${this.aiRacers.length + 1}`;
         
         // Check if AI racers finish race
         this.aiRacers.forEach(ai => {
