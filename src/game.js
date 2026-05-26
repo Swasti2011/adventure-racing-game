@@ -238,6 +238,18 @@ class GameManager {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      
+      // Dynamic mobile vs web touch controls layout update on resize
+      if (document.body.classList.contains('touch-device')) {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 1024;
+        if (isMobile) {
+          document.body.classList.add('mobile-layout');
+          document.body.classList.remove('web-layout');
+        } else {
+          document.body.classList.add('web-layout');
+          document.body.classList.remove('mobile-layout');
+        }
+      }
     });
 
     // Keyboard controls routes
@@ -361,6 +373,16 @@ class GameManager {
     const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
     if (isTouchDevice) {
       document.body.classList.add('touch-device');
+      
+      // Determine if mobile layout or web layout should be loaded
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 1024;
+      if (isMobile) {
+        document.body.classList.add('mobile-layout');
+        document.body.classList.remove('web-layout');
+      } else {
+        document.body.classList.add('web-layout');
+        document.body.classList.remove('mobile-layout');
+      }
     }
     
     const bindTouchKey = (btnId, keyName) => {
