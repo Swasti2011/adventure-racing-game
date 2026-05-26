@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shivukart-v10';
+const CACHE_NAME = 'shivukart-v12';
 const ASSETS = [
   './index.html',
   './style.css',
