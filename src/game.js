@@ -562,11 +562,11 @@ class GameManager {
         this.peerConn = conn;
         this.setupPeerConnListeners();
         
-        // Notify guest that room is established
+        // Notify guest and host simultaneously to start race!
         setTimeout(() => {
-          this.sendNetworkMessage({ type: 'ROOM_JOINED', roomCode: cleanCode, playerIndex: 2 });
-          this.handleNetworkMessage({ type: 'OPPONENT_JOINED', opponentIndex: 2 });
-        }, 200);
+          this.sendNetworkMessage({ type: 'OPPONENT_JOINED', roomCode: cleanCode });
+          this.handleNetworkMessage({ type: 'OPPONENT_JOINED', roomCode: cleanCode });
+        }, 300);
       });
 
       this.peer.on('error', (err) => {
@@ -607,14 +607,6 @@ class GameManager {
 
   setupPeerConnListeners() {
     if (!this.peerConn) return;
-
-    this.peerConn.on('open', () => {
-      if (this.playerIndex === 2) {
-        document.getElementById('mp-initial-panel').style.display = 'none';
-        document.getElementById('mp-waiting-panel').style.display = 'block';
-        document.getElementById('lbl-room-code').textContent = this.roomCode;
-      }
-    });
 
     this.peerConn.on('data', (data) => {
       this.handleNetworkMessage(data);
@@ -685,6 +677,8 @@ class GameManager {
       }
 
       case 'OPPONENT_JOINED': {
+        // Switch BOTH players from lobby screen to race HUD
+        this.switchScreen('race-hud');
         document.getElementById('mp-hud-status').classList.remove('hidden');
         document.getElementById('mp-hud-status-text').textContent = `ROOM: ${this.roomCode}`;
         
