@@ -255,52 +255,340 @@ function createDriverMesh(colorPreset) {
   return driverGroup;
 }
 
-// Procedurally builds a 3D Low-Poly Kart Model
+// Procedurally builds a 3D Low-Poly Kart Model with 7 custom car chassis designs
 export function createKartMesh(colorPreset = '#e63946', upgrades = {}) {
   const group = new THREE.Group();
+  const carModel = upgrades.car || 'standard';
   
-  // 1. Kart Chassis (Main Body)
-  const bodyGeom = new THREE.BoxGeometry(2.0, 0.6, 3.8);
   const bodyMat = new THREE.MeshPhongMaterial({
     color: colorPreset,
     flatShading: true,
     shininess: 80
   });
-  const body = new THREE.Mesh(bodyGeom, bodyMat);
-  body.position.y = 0.5;
-  body.castShadow = true;
-  body.receiveShadow = true;
-  group.add(body);
   
-  // Nose/Hood section
-  const noseGeom = new THREE.BoxGeometry(1.6, 0.4, 1.2);
-  const nose = new THREE.Mesh(noseGeom, bodyMat);
-  nose.position.set(0, 0.4, 1.8);
-  nose.castShadow = true;
-  group.add(nose);
-
-  // Seat
-  const seatGeom = new THREE.BoxGeometry(1.4, 0.9, 0.9);
+  const accentMat = new THREE.MeshPhongMaterial({ color: '#ffffff', flatShading: true });
   const seatMat = new THREE.MeshPhongMaterial({ color: '#1a1a1a', flatShading: true });
-  const seat = new THREE.Mesh(seatGeom, seatMat);
-  seat.position.set(0, 0.9, -0.4);
-  seat.castShadow = true;
-  group.add(seat);
-  
-  // Engine Block (Back)
-  const engGeom = new THREE.BoxGeometry(1.2, 1.0, 1.0);
   const engMat = new THREE.MeshPhongMaterial({ color: '#555555', metalness: 0.8, shininess: 80 });
-  const engine = new THREE.Mesh(engGeom, engMat);
-  engine.position.set(0, 0.8, -1.3);
-  engine.castShadow = true;
-  group.add(engine);
-  
-  // Exhaust Pipes
-  const exhaustGeom = new THREE.CylinderGeometry(0.2, 0.25, 1.2);
-  exhaustGeom.rotateX(Math.PI / 2);
-  const exhaust = new THREE.Mesh(exhaustGeom, engMat);
-  exhaust.position.set(0.4, 0.5, -1.8);
-  group.add(exhaust);
+  const chromeMat = new THREE.MeshPhongMaterial({ color: '#dddddd', metalness: 0.9, shininess: 100 });
+  const goldMat = new THREE.MeshPhongMaterial({ color: '#ffbe0b', metalness: 0.5, shininess: 90 });
+  const cyanGlowMat = new THREE.MeshBasicMaterial({ color: '#00f2fe' });
+
+  // Build chassis according to selected car model
+  switch (carModel) {
+    case 'speed_demon': {
+      // 2. Speed Demon (Low-slung Aerodynamic Racer)
+      const bodyGeom = new THREE.BoxGeometry(2.1, 0.45, 4.0);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.4;
+      body.castShadow = true;
+      group.add(body);
+
+      const noseGeom = new THREE.BoxGeometry(1.4, 0.3, 1.6);
+      const nose = new THREE.Mesh(noseGeom, bodyMat);
+      nose.position.set(0, 0.35, 2.0);
+      nose.castShadow = true;
+      group.add(nose);
+
+      // Dual front splitters
+      const splitterGeom = new THREE.BoxGeometry(2.4, 0.08, 0.6);
+      const splitter = new THREE.Mesh(splitterGeom, accentMat);
+      splitter.position.set(0, 0.22, 2.3);
+      group.add(splitter);
+
+      // Side Air Scoops
+      [-1.1, 1.1].forEach(x => {
+        const scoopGeom = new THREE.BoxGeometry(0.4, 0.4, 1.4);
+        const scoop = new THREE.Mesh(scoopGeom, accentMat);
+        scoop.position.set(x, 0.5, 0.2);
+        group.add(scoop);
+      });
+
+      const seatGeom = new THREE.BoxGeometry(1.3, 0.8, 0.8);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 0.7, -0.4);
+      group.add(seat);
+
+      const engCoverGeom = new THREE.BoxGeometry(1.4, 0.6, 1.2);
+      const engCover = new THREE.Mesh(engCoverGeom, engMat);
+      engCover.position.set(0, 0.6, -1.4);
+      group.add(engCover);
+
+      // Dual Exhausts
+      [-0.4, 0.4].forEach(x => {
+        const exhaustGeom = new THREE.CylinderGeometry(0.18, 0.22, 1.0);
+        exhaustGeom.rotateX(Math.PI / 2);
+        const ex = new THREE.Mesh(exhaustGeom, engMat);
+        ex.position.set(x, 0.45, -1.9);
+        group.add(ex);
+      });
+      break;
+    }
+
+    case 'thunder': {
+      // 3. Thunder Cruiser (Heavy Off-Road Monster)
+      const bodyGeom = new THREE.BoxGeometry(2.3, 0.75, 4.0);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.6;
+      body.castShadow = true;
+      group.add(body);
+
+      // Front Tubular Bumper
+      const bumperGeom = new THREE.BoxGeometry(2.5, 0.25, 0.4);
+      const bumper = new THREE.Mesh(bumperGeom, chromeMat);
+      bumper.position.set(0, 0.55, 2.1);
+      group.add(bumper);
+
+      // Side Armor Plates
+      [-1.22, 1.22].forEach(x => {
+        const armorGeom = new THREE.BoxGeometry(0.2, 0.6, 2.6);
+        const armor = new THREE.Mesh(armorGeom, engMat);
+        armor.position.set(x, 0.6, 0);
+        group.add(armor);
+      });
+
+      const seatGeom = new THREE.BoxGeometry(1.5, 1.0, 1.0);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 1.0, -0.4);
+      group.add(seat);
+
+      // Dual High Vertical Monster Exhaust Stacks
+      [-0.6, 0.6].forEach(x => {
+        const stackGeom = new THREE.CylinderGeometry(0.2, 0.2, 1.4);
+        const stack = new THREE.Mesh(stackGeom, chromeMat);
+        stack.position.set(x, 1.4, -1.6);
+        stack.rotation.x = -0.2;
+        group.add(stack);
+      });
+      break;
+    }
+
+    case 'cyber': {
+      // 4. Cyber Blade (Sci-Fi Stealth Wedge Jet)
+      const bodyGeom = new THREE.BoxGeometry(2.2, 0.4, 4.2);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.45;
+      body.castShadow = true;
+      group.add(body);
+
+      const noseGeom = new THREE.BoxGeometry(1.2, 0.25, 1.8);
+      const nose = new THREE.Mesh(noseGeom, bodyMat);
+      nose.position.set(0, 0.35, 2.2);
+      group.add(nose);
+
+      // Dual Side Winglets
+      [-1.4, 1.4].forEach(x => {
+        const wingletGeom = new THREE.BoxGeometry(0.8, 0.08, 1.2);
+        const winglet = new THREE.Mesh(wingletGeom, accentMat);
+        winglet.position.set(x, 0.45, -0.8);
+        winglet.rotation.z = x > 0 ? -0.2 : 0.2;
+        group.add(winglet);
+      });
+
+      // Cyan Glowing Strip Lines
+      [-1.05, 1.05].forEach(x => {
+        const stripGeom = new THREE.BoxGeometry(0.1, 0.08, 3.6);
+        const strip = new THREE.Mesh(stripGeom, cyanGlowMat);
+        strip.position.set(x, 0.62, 0);
+        group.add(strip);
+      });
+
+      const seatGeom = new THREE.BoxGeometry(1.2, 0.85, 0.8);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 0.75, -0.4);
+      group.add(seat);
+
+      const intakeGeom = new THREE.BoxGeometry(1.1, 0.7, 1.1);
+      const intake = new THREE.Mesh(intakeGeom, engMat);
+      intake.position.set(0, 0.7, -1.4);
+      group.add(intake);
+      break;
+    }
+
+    case 'phantom': {
+      // 5. Phantom Roadster (Vintage Open-Wheel Roadster)
+      const bodyGeom = new THREE.BoxGeometry(1.8, 0.6, 4.4);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.55;
+      body.castShadow = true;
+      group.add(body);
+
+      // Elongated Hood
+      const hoodGeom = new THREE.BoxGeometry(1.5, 0.55, 2.2);
+      const hood = new THREE.Mesh(hoodGeom, bodyMat);
+      hood.position.set(0, 0.65, 1.3);
+      group.add(hood);
+
+      // Chrome Radiator Grill
+      const grillGeom = new THREE.BoxGeometry(1.3, 0.6, 0.15);
+      const grill = new THREE.Mesh(grillGeom, chromeMat);
+      grill.position.set(0, 0.65, 2.4);
+      group.add(grill);
+
+      // Round Classic Headlights
+      [-0.6, 0.6].forEach(x => {
+        const hlGeom = new THREE.SphereGeometry(0.22, 8, 8);
+        const hl = new THREE.Mesh(hlGeom, chromeMat);
+        hl.position.set(x, 0.75, 2.4);
+        group.add(hl);
+      });
+
+      // High Backrest Seat
+      const seatGeom = new THREE.BoxGeometry(1.3, 1.2, 0.3);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 1.1, -0.6);
+      group.add(seat);
+
+      // Chrome Side Exhaust Pipes
+      [-1.0, 1.0].forEach(x => {
+        const pipeGeom = new THREE.CylinderGeometry(0.12, 0.12, 2.4);
+        pipeGeom.rotateX(Math.PI / 2);
+        const pipe = new THREE.Mesh(pipeGeom, chromeMat);
+        pipe.position.set(x, 0.4, 0.2);
+        group.add(pipe);
+      });
+      break;
+    }
+
+    case 'formula': {
+      // 6. Formula Hyper (F1 Open-Wheel Racer)
+      const bodyGeom = new THREE.BoxGeometry(1.3, 0.5, 4.2);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.5;
+      body.castShadow = true;
+      group.add(body);
+
+      // Pointed F1 Nose
+      const noseGeom = new THREE.BoxGeometry(0.9, 0.3, 2.2);
+      const nose = new THREE.Mesh(noseGeom, bodyMat);
+      nose.position.set(0, 0.4, 1.8);
+      group.add(nose);
+
+      // Wide F1 Front Wing Splitter
+      const wingGeom = new THREE.BoxGeometry(2.6, 0.1, 0.7);
+      const wing = new THREE.Mesh(wingGeom, accentMat);
+      wing.position.set(0, 0.25, 2.6);
+      group.add(wing);
+
+      // Side Pods
+      [-0.9, 0.9].forEach(x => {
+        const podGeom = new THREE.BoxGeometry(0.5, 0.45, 1.8);
+        const pod = new THREE.Mesh(podGeom, bodyMat);
+        pod.position.set(x, 0.45, 0);
+        group.add(pod);
+      });
+
+      // Overhead Air Intake Scoop
+      const scoopGeom = new THREE.BoxGeometry(0.5, 0.5, 0.6);
+      const scoop = new THREE.Mesh(scoopGeom, accentMat);
+      scoop.position.set(0, 1.45, -0.7);
+      group.add(scoop);
+
+      const seatGeom = new THREE.BoxGeometry(1.1, 0.8, 0.8);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 0.75, -0.4);
+      group.add(seat);
+
+      // Formula Rear Wing
+      const rWingGroup = new THREE.Group();
+      rWingGroup.position.set(0, 1.4, -1.8);
+      const supGeom = new THREE.BoxGeometry(0.12, 0.9, 0.3);
+      [-0.6, 0.6].forEach(x => {
+        const sup = new THREE.Mesh(supGeom, seatMat);
+        sup.position.x = x;
+        rWingGroup.add(sup);
+      });
+      const rWingMain = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 0.8), bodyMat);
+      rWingMain.position.y = 0.45;
+      rWingGroup.add(rWingMain);
+      group.add(rWingGroup);
+      break;
+    }
+
+    case 'solaris': {
+      // 7. Solaris Prime (Apex Hypercar)
+      const bodyGeom = new THREE.BoxGeometry(2.4, 0.55, 4.4);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.5;
+      body.castShadow = true;
+      group.add(body);
+
+      // Sculpted Hood
+      const hoodGeom = new THREE.BoxGeometry(1.8, 0.35, 1.8);
+      const hood = new THREE.Mesh(hoodGeom, bodyMat);
+      hood.position.set(0, 0.5, 1.6);
+      group.add(hood);
+
+      // Hyper Splitter with Gold Accents
+      const splitterGeom = new THREE.BoxGeometry(2.6, 0.12, 0.8);
+      const splitter = new THREE.Mesh(splitterGeom, goldMat);
+      splitter.position.set(0, 0.28, 2.4);
+      group.add(splitter);
+
+      // Dual Canopy Roof Fins
+      [-0.8, 0.8].forEach(x => {
+        const finGeom = new THREE.BoxGeometry(0.1, 0.6, 1.4);
+        const fin = new THREE.Mesh(finGeom, cyanGlowMat);
+        fin.position.set(x, 1.1, -0.6);
+        fin.rotation.z = x > 0 ? -0.15 : 0.15;
+        group.add(fin);
+      });
+
+      const seatGeom = new THREE.BoxGeometry(1.4, 0.9, 0.9);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 0.85, -0.4);
+      group.add(seat);
+
+      // Triple Rocket Turbine Exhausts
+      [
+        { x: -0.4, y: 0.6 },
+        { x: 0.4, y: 0.6 },
+        { x: 0.0, y: 0.95 }
+      ].forEach(pos => {
+        const turbineGeom = new THREE.CylinderGeometry(0.2, 0.25, 1.0);
+        turbineGeom.rotateX(Math.PI / 2);
+        const turbine = new THREE.Mesh(turbineGeom, goldMat);
+        turbine.position.set(pos.x, pos.y, -1.9);
+        group.add(turbine);
+      });
+      break;
+    }
+
+    case 'standard':
+    default: {
+      // 1. Standard Kart (Classic All-Rounder)
+      const bodyGeom = new THREE.BoxGeometry(2.0, 0.6, 3.8);
+      const body = new THREE.Mesh(bodyGeom, bodyMat);
+      body.position.y = 0.5;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      group.add(body);
+
+      const noseGeom = new THREE.BoxGeometry(1.6, 0.4, 1.2);
+      const nose = new THREE.Mesh(noseGeom, bodyMat);
+      nose.position.set(0, 0.4, 1.8);
+      nose.castShadow = true;
+      group.add(nose);
+
+      const seatGeom = new THREE.BoxGeometry(1.4, 0.9, 0.9);
+      const seat = new THREE.Mesh(seatGeom, seatMat);
+      seat.position.set(0, 0.9, -0.4);
+      seat.castShadow = true;
+      group.add(seat);
+
+      const engGeom = new THREE.BoxGeometry(1.2, 1.0, 1.0);
+      const engine = new THREE.Mesh(engGeom, engMat);
+      engine.position.set(0, 0.8, -1.3);
+      engine.castShadow = true;
+      group.add(engine);
+
+      const exhaustGeom = new THREE.CylinderGeometry(0.2, 0.25, 1.2);
+      exhaustGeom.rotateX(Math.PI / 2);
+      const exhaust = new THREE.Mesh(exhaustGeom, engMat);
+      exhaust.position.set(0.4, 0.5, -1.8);
+      group.add(exhaust);
+      break;
+    }
+  }
 
   // 2. Wheels
   const wheelGeom = new THREE.CylinderGeometry(0.7, 0.7, 0.6, 8);
@@ -472,19 +760,23 @@ export class PlayerKart {
     // Particle system for drift smoke
     this.particles = [];
     this.setupParticles();
+    this.onHazardDropped = null;
   }
 
   // Setup / Rebuild the Kart Visual Model
-  init(color, upgrades) {
+  init(color, upgrades = {}) {
     if (this.mesh) this.scene.remove(this.mesh);
     
     this.colorPreset = color;
     this.upgrades = upgrades;
     
-    // Recompute modifier stats based on upgrades
-    this.accelModifier = upgrades.engine === 'v6' ? 1.25 : (upgrades.engine === 'turbo' ? 1.4 : 1.0);
-    this.maxSpeedModifier = upgrades.engine === 'turbo' ? 1.3 : (upgrades.engine === 'v6' ? 1.1 : 1.0);
-    this.handlingModifier = upgrades.tires === 'sport' ? 1.35 : (upgrades.tires === 'neon' ? 1.2 : 1.0);
+    // All car bodies share fair, equal base performance physics (purely visual 3D body styles)
+    const base = { speed: 1.00, accel: 1.00, handling: 1.00 };
+    
+    // Recompute modifier stats based on engine & tire upgrades
+    this.accelModifier = base.accel * (upgrades.engine === 'v6' ? 1.25 : (upgrades.engine === 'turbo' ? 1.4 : 1.0));
+    this.maxSpeedModifier = base.speed * (upgrades.engine === 'turbo' ? 1.3 : (upgrades.engine === 'v6' ? 1.1 : 1.0));
+    this.handlingModifier = base.handling * (upgrades.tires === 'sport' ? 1.35 : (upgrades.tires === 'neon' ? 1.2 : 1.0));
     
     this.mesh = createKartMesh(this.colorPreset, this.upgrades);
     this.scene.add(this.mesh);
@@ -665,6 +957,7 @@ export class PlayerKart {
         const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.heading);
         const dropPos = this.position.clone().addScaledVector(forward, -4.5);
         this.track.dropHazard(powerUp, dropPos);
+        if (this.onHazardDropped) this.onHazardDropped(powerUp, dropPos);
         break;
         
       case 'magnet':
@@ -985,7 +1278,12 @@ export class AiKart {
 
   init() {
     if (this.mesh) this.scene.remove(this.mesh);
-    this.mesh = createKartMesh(this.color);
+    
+    // Pick random car model for AI opponents
+    const carModels = ['standard', 'speed_demon', 'thunder', 'cyber', 'phantom', 'formula', 'solaris'];
+    const randomCar = carModels[(this.index - 1) % carModels.length];
+    
+    this.mesh = createKartMesh(this.color, { car: randomCar });
     
     // Standard scaling (slightly smaller than player)
     this.mesh.scale.set(0.95, 0.95, 0.95);
@@ -1100,4 +1398,95 @@ export class AiKart {
     this.mesh = null;
   }
 }
+export class RemotePlayerKart {
+  constructor(scene) {
+    this.scene = scene;
+    this.mesh = null;
+    
+    // Position/rotation targets for interpolation (lerp)
+    this.position = new THREE.Vector3(0, 0, 0);
+    this.targetPosition = new THREE.Vector3(0, 0, 0);
+    
+    this.heading = 0;
+    this.targetHeading = 0;
+    
+    this.speed = 0;
+    this.isDrifting = false;
+    this.driftDirection = 0;
+    this.spinTimer = 0;
+    this.color = '#ff007f';
+    this.closestT = 0;
+  }
+
+  init(color = '#ff007f', upgrades = {}) {
+    if (this.mesh) this.scene.remove(this.mesh);
+    this.color = color;
+    this.mesh = createKartMesh(this.color, upgrades);
+    this.scene.add(this.mesh);
+  }
+
+  updateState(state) {
+    if (state.position) {
+      this.targetPosition.set(state.position.x, state.position.y, state.position.z);
+    }
+    if (state.heading !== undefined) {
+      this.targetHeading = state.heading;
+    }
+    if (state.speed !== undefined) {
+      this.speed = state.speed;
+    }
+    if (state.isDrifting !== undefined) {
+      this.isDrifting = state.isDrifting;
+    }
+    if (state.driftDirection !== undefined) {
+      this.driftDirection = state.driftDirection;
+    }
+    if (state.spinTimer !== undefined) {
+      this.spinTimer = state.spinTimer;
+    }
+    if (state.closestT !== undefined) {
+      this.closestT = state.closestT;
+    }
+  }
+
+  update(deltaTime) {
+    if (!this.mesh) return;
+
+    // Linear interpolation (lerp) for smooth movements
+    const lerpFactor = Math.min(deltaTime * 15.0, 1.0);
+    this.position.lerp(this.targetPosition, lerpFactor);
+
+    // Angle interpolation (handling wrap around)
+    let diff = this.targetHeading - this.heading;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    this.heading += diff * lerpFactor;
+
+    this.mesh.position.copy(this.position);
+    this.mesh.rotation.set(0, this.heading, 0);
+
+    // Drift visuals
+    if (this.isDrifting) {
+      this.mesh.rotation.z = -this.driftDirection * 0.16;
+      this.mesh.rotation.y = this.heading + (this.driftDirection * 0.28);
+    }
+
+    if (this.spinTimer > 0) {
+      this.mesh.rotation.y += (this.spinTimer * Math.PI * 8);
+    }
+
+    // Spin wheels based on speed
+    this.mesh.traverse(child => {
+      if (child.name === "wheel") {
+        child.rotation.x += this.speed * deltaTime * 0.25;
+      }
+    });
+  }
+
+  clear() {
+    if (this.mesh) this.scene.remove(this.mesh);
+    this.mesh = null;
+  }
+}
+
 export default PlayerKart;

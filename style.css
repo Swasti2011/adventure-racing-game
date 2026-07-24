@@ -1177,3 +1177,40 @@ body.touch-device.mobile-layout .drift-btn {
     font-size: 1.4rem;
   }
 }
+
+/* Multiplayer Custom HUD Status and Lobby elements */
+.hud-top-center {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--color-text-gray);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+}
+
+.status-dot.online {
+  background: var(--color-neon-green);
+  box-shadow: 0 0 8px var(--color-neon-green-glow);
+  animation: pulse-green 1.5s infinite alternate;
+}
+
+@keyframes pulse-green {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+.hidden {
+  display: none !important;
+}

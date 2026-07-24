@@ -1102,7 +1102,7 @@ export class TrackManager {
         this.itemBoxes.splice(i, 1);
         
         // Spawn pop particles later, trigger callback
-        if (this.onItemBoxCollected) this.onItemBoxCollected();
+        if (this.onItemBoxCollected) this.onItemBoxCollected(box.position);
         
         // Re-spawn box after 5 seconds
         const boxPos = box.position.clone();
@@ -1135,6 +1135,39 @@ export class TrackManager {
         
         if (this.onHazardHit) this.onHazardHit(hType);
       }
+    }
+  }
+
+  collectItemBoxByPosition(x, y, z) {
+    const targetPos = new THREE.Vector3(x, y, z);
+    let bestIndex = -1;
+    let minDist = 4.0; // matching tolerance
+    
+    for (let i = 0; i < this.itemBoxes.length; i++) {
+      const box = this.itemBoxes[i];
+      const dist = box.position.distanceTo(targetPos);
+      if (dist < minDist) {
+        minDist = dist;
+        bestIndex = i;
+      }
+    }
+    
+    if (bestIndex > -1) {
+      const box = this.itemBoxes[bestIndex];
+      this.scene.remove(box);
+      this.itemBoxes.splice(bestIndex, 1);
+      
+      // Re-spawn box after 5 seconds
+      const boxPos = box.position.clone();
+      setTimeout(() => {
+        if (this.scene) {
+          const reBox = new THREE.Mesh(box.geometry, box.material);
+          reBox.position.copy(boxPos);
+          reBox.add(new THREE.BoxHelper(reBox, '#ffffff'));
+          this.scene.add(reBox);
+          this.itemBoxes.push(reBox);
+        }
+      }, 5000);
     }
   }
 

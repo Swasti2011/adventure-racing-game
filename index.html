@@ -82,7 +82,8 @@
 
       <div class="menu-actions">
         <button id="btn-start-game" class="btn btn-primary neon-btn-blue">PLAY NOW</button>
-        <button id="btn-open-garage" class="btn btn-secondary neon-btn-gold">GARAGE / CUSTOMIZE</button>
+        <button id="btn-open-multiplayer" class="btn btn-secondary neon-btn-gold">MULTIPLAYER</button>
+        <button id="btn-open-garage" class="btn btn-secondary">GARAGE / CUSTOMIZE</button>
         <button id="btn-open-worlds" class="btn btn-secondary">SELECT WORLD</button>
       </div>
 
@@ -123,13 +124,69 @@
         </div>
 
         <div class="tabs-container">
-          <button class="tab-btn active" data-tab="paint">Paint</button>
+          <button class="tab-btn active" data-tab="cars">Cars</button>
+          <button class="tab-btn" data-tab="paint">Paint</button>
           <button class="tab-btn" data-tab="tires">Tires</button>
           <button class="tab-btn" data-tab="engine">Engine</button>
           <button class="tab-btn" data-tab="cosmetics">Extras</button>
         </div>
 
-        <div class="tab-content active" id="tab-paint">
+        <div class="tab-content active" id="tab-cars">
+          <h3>Select Car Body Type</h3>
+          <div class="upgrade-list" style="max-height: 280px; overflow-y: auto; padding-right: 4px;">
+            <div class="upgrade-item" data-type="car" data-id="standard" data-cost="0">
+              <div>
+                <span class="upgrade-name">Standard Kart</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-text-gray);">Classic Boxy Kart Chassis</div>
+              </div>
+              <button class="btn btn-sm btn-action equipped">Equipped</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="speed_demon" data-cost="100">
+              <div>
+                <span class="upgrade-name">Speed Demon</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-blue);">Low-Slung Aerodynamic Body</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 100 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="thunder" data-cost="250">
+              <div>
+                <span class="upgrade-name">Thunder Cruiser</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-gold);">Heavy Monster Bumper & High Stacks</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 250 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="cyber" data-cost="500">
+              <div>
+                <span class="upgrade-name">Cyber Blade</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-pink);">Sci-Fi Stealth Wedge Jet Body</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 500 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="phantom" data-cost="1000">
+              <div>
+                <span class="upgrade-name">Phantom Roadster</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-blue);">Vintage Open-Wheel Roadster Body</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 1000 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="formula" data-cost="2000">
+              <div>
+                <span class="upgrade-name">Formula Hyper</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-gold);">F1 Open-Wheel Splitter Body</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 2000 🪙</button>
+            </div>
+            <div class="upgrade-item" data-type="car" data-id="solaris" data-cost="4000">
+              <div>
+                <span class="upgrade-name">Solaris Prime</span>
+                <div class="upgrade-desc" style="font-size:0.75rem; color:var(--color-neon-pink);">Apex Hypercar Shell & Triple Turbines</div>
+              </div>
+              <button class="btn btn-sm btn-action btn-buy">Buy 4000 🪙</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-paint">
           <h3>Body Color</h3>
           <div class="grid-presets">
             <button class="color-swatch active" style="background: #e63946;" data-color="#e63946"></button>
@@ -237,6 +294,12 @@
         </div>
       </div>
 
+      <!-- Multiplayer Opponent Info overlay -->
+      <div id="mp-hud-status" class="hud-top-center glass-card hidden">
+        <span class="status-dot online"></span>
+        <span id="mp-hud-status-text">ROOM: AAAA</span>
+      </div>
+
       <!-- Center Countdown -->
       <div id="countdown-overlay" class="countdown-text hidden">3</div>
 
@@ -270,6 +333,32 @@
         <div class="pedal-buttons">
           <button id="btn-touch-brake" class="touch-btn pedal-btn brake-btn">▼</button>
           <button id="btn-touch-gas" class="touch-btn pedal-btn gas-btn">▲</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5.5 MULTIPLAYER LOBBY SCREEN -->
+    <div id="multiplayer-screen" class="screen">
+      <div class="glass-card dialog-box">
+        <h2>MULTIPLAYER LOBBY</h2>
+        
+        <div id="mp-initial-panel">
+          <button id="btn-mp-create" class="btn btn-primary neon-btn-blue" style="width:100%; margin-bottom:12px;">CREATE ROOM</button>
+          <div style="margin: 15px 0; color:var(--color-text-gray);">— OR —</div>
+          <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input type="text" id="input-room-code" placeholder="ROOM CODE" maxlength="4" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--color-border-glass); background:rgba(0,0,0,0.5); color:#fff; text-align:center; font-size:1.2rem; text-transform:uppercase; font-family:var(--font-secondary);">
+            <button id="btn-mp-join" class="btn btn-secondary">JOIN</button>
+          </div>
+          <p id="mp-lobby-error" class="error-text" style="color:var(--color-neon-pink); font-size:0.9rem; margin-bottom:15px; display:none;"></p>
+          <button id="btn-mp-back" class="btn btn-secondary" style="width:100%;">Back to Menu</button>
+        </div>
+        
+        <div id="mp-waiting-panel" style="display:none;">
+          <h3 class="neon-text-blue" style="margin-bottom:8px;">ROOM CODE</h3>
+          <h1 id="lbl-room-code" style="font-size:3rem; letter-spacing:4px; margin-bottom:15px; color:var(--color-neon-gold);">AAAA</h1>
+          <div class="spinner" style="width:30px; height:30px; margin-bottom:15px;"></div>
+          <p style="color:var(--color-text-gray); margin-bottom:20px;">Waiting for player 2 to join...</p>
+          <button id="btn-mp-cancel" class="btn btn-danger" style="width:100%;">Cancel Room</button>
         </div>
       </div>
     </div>

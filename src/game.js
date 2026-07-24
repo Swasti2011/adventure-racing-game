@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { audioEngine } from './audio.js';
 import { TrackManager, WORLDS } from './track.js';
-import { PlayerKart, AiKart } from './car.js';
+import { PlayerKart, AiKart, RemotePlayerKart } from './car.js';
 
 class GameManager {
   constructor() {
@@ -37,6 +37,7 @@ class GameManager {
     this.coins = 0;
     this.currentKartColor = '#e63946';
     this.ownedUpgrades = {
+      car: ['standard'],
       paint: ['#e63946'],
       tires: ['basic'],
       engine: ['basic'],
@@ -44,6 +45,7 @@ class GameManager {
       underglow: []
     };
     this.equippedUpgrades = {
+      car: 'standard',
       tires: 'basic',
       engine: 'basic',
       spoiler: 'none',
@@ -52,6 +54,17 @@ class GameManager {
 
     // Frame rates
     this.lastTime = 0;
+
+    // Multiplayer fields
+    this.socket = null;
+    this.isMultiplayer = false;
+    this.playerIndex = null; // 1 or 2
+    this.opponent = null; // RemotePlayerKart
+    this.roomCode = '';
+    this.syncTimer = 0;
+    this.opponentFinished = false;
+    this.opponentLaps = 0;
+    this.opponentRank = 1;
   }
 
   init() {
@@ -213,6 +226,13 @@ class GameManager {
     if (screenId === 'main-menu') {
       this.positionCameraForMenu();
     }
+
+    if (screenId === 'multiplayer-screen') {
+      document.getElementById('mp-initial-panel').style.display = 'block';
+      document.getElementById('mp-waiting-panel').style.display = 'none';
+      document.getElementById('mp-lobby-error').style.display = 'none';
+      document.getElementById('input-room-code').value = '';
+    }
   }
 
   positionCameraForMenu() {
@@ -280,7 +300,13 @@ class GameManager {
     // Main Menu Buttons
     document.getElementById('btn-start-game').addEventListener('click', () => {
       audioEngine.init();
+      this.isMultiplayer = false;
       this.startRaceCountdown();
+    });
+
+    document.getElementById('btn-open-multiplayer').addEventListener('click', () => {
+      audioEngine.init();
+      this.switchScreen('multiplayer-screen');
     });
 
     document.getElementById('btn-open-garage').addEventListener('click', () => {
@@ -292,6 +318,31 @@ class GameManager {
       audioEngine.init();
       this.populateWorldsGrid();
       this.switchScreen('world-select-screen');
+    });
+
+    // Multiplayer Lobby button actions
+    document.getElementById('btn-mp-create').addEventListener('click', () => {
+      this.initMultiplayerSocket('create');
+    });
+
+    document.getElementById('btn-mp-join').addEventListener('click', () => {
+      const code = document.getElementById('input-room-code').value.toUpperCase().trim();
+      if (!code || code.length !== 4) {
+        const errorEl = document.getElementById('mp-lobby-error');
+        errorEl.textContent = 'Please enter a valid 4-character room code.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      this.initMultiplayerSocket('join', code);
+    });
+
+    document.getElementById('btn-mp-back').addEventListener('click', () => {
+      this.switchScreen('main-menu');
+    });
+
+    document.getElementById('btn-mp-cancel').addEventListener('click', () => {
+      this.closeMultiplayerSocket();
+      this.switchScreen('main-menu');
     });
 
     // World Select Screen Back button
@@ -321,13 +372,7 @@ class GameManager {
     });
 
     document.getElementById('btn-quit-race').addEventListener('click', () => {
-      this.resumeRace();
-      this.raceActive = false;
-      audioEngine.setEngineActive(false);
-      
-      this.trackManager.generate(this.activeWorldId);
-      this.player.init(this.currentKartColor, this.equippedUpgrades);
-      this.switchScreen('main-menu');
+      this.exitRaceToMenu();
     });
 
     // Victory Continue / Retry Buttons
@@ -439,6 +484,190 @@ class GameManager {
     }
   }
 
+  // --- MULTIPLAYER ROOM & WEBSOCKET ENGINE ---
+
+  initMultiplayerSocket(action, roomCode = '') {
+    const errorEl = document.getElementById('mp-lobby-error');
+    errorEl.style.display = 'none';
+
+    // WebSocket URL (secure wss or standard ws depending on host)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socketUrl = `${protocol}//${window.location.host}`;
+    
+    try {
+      this.socket = new WebSocket(socketUrl);
+    } catch (e) {
+      errorEl.textContent = 'Failed to connect to multiplayer server.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    this.socket.onopen = () => {
+      if (action === 'create') {
+        this.socket.send(JSON.stringify({ type: 'CREATE_ROOM' }));
+      } else if (action === 'join') {
+        this.socket.send(JSON.stringify({ type: 'JOIN_ROOM', roomCode }));
+      }
+    };
+
+    this.socket.onclose = () => {
+      this.cleanupMultiplayer();
+      // Only show error if we are on the multiplayer screen
+      if (this.activeScreen === 'multiplayer-screen') {
+        errorEl.textContent = 'Disconnected from server.';
+        errorEl.style.display = 'block';
+      } else if (this.activeScreen === 'race-hud') {
+        alert('Opponent disconnected or server closed room. Returning to main menu.');
+        this.exitRaceToMenu();
+      }
+    };
+
+    this.socket.onerror = (err) => {
+      console.error('Socket error:', err);
+    };
+
+    this.socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        switch (data.type) {
+          case 'ROOM_CREATED': {
+            this.roomCode = data.roomCode;
+            this.playerIndex = data.playerIndex;
+            this.isMultiplayer = true;
+
+            document.getElementById('mp-initial-panel').style.display = 'none';
+            document.getElementById('mp-waiting-panel').style.display = 'block';
+            document.getElementById('lbl-room-code').textContent = data.roomCode;
+            break;
+          }
+
+          case 'ROOM_JOINED': {
+            this.roomCode = data.roomCode;
+            this.playerIndex = data.playerIndex;
+            this.isMultiplayer = true;
+            
+            document.getElementById('mp-initial-panel').style.display = 'none';
+            document.getElementById('mp-waiting-panel').style.display = 'block';
+            document.getElementById('lbl-room-code').textContent = data.roomCode;
+            break;
+          }
+
+          case 'OPPONENT_JOINED': {
+            // Both clients are connected! Start game.
+            document.getElementById('mp-hud-status').classList.remove('hidden');
+            document.getElementById('mp-hud-status-text').textContent = `ROOM: ${this.roomCode}`;
+            
+            // Instantly transition to HUD and start race!
+            this.opponentFinished = false;
+            this.opponentLaps = 0;
+            
+            // Spawn the opponent
+            if (this.opponent) {
+              this.opponent.clear();
+            }
+            this.opponent = new RemotePlayerKart(this.scene);
+            
+            // Player 1 is red, Player 2 is pink (or opposite of current local color)
+            let oppColor = '#ff007f';
+            if (this.playerIndex === 2) {
+              oppColor = '#e63946';
+            }
+            this.opponent.init(oppColor);
+
+            this.startRaceCountdown();
+            break;
+          }
+
+          case 'SYNC_STATE': {
+            if (this.opponent) {
+              this.opponent.updateState(data);
+            }
+            break;
+          }
+
+          case 'SPAWN_HAZARD': {
+            if (this.trackManager) {
+              this.trackManager.dropHazard(data.hazardType, new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z));
+            }
+            break;
+          }
+
+          case 'COLLECT_ITEM': {
+            if (this.trackManager) {
+              this.trackManager.collectItemBoxByPosition(data.pos.x, data.pos.y, data.pos.z);
+            }
+            break;
+          }
+
+          case 'LAP_COMPLETE': {
+            this.opponentLaps = data.lap;
+            break;
+          }
+
+          case 'FINISH_RACE': {
+            this.opponentFinished = true;
+            this.opponentRank = data.rank;
+            break;
+          }
+
+          case 'OPPONENT_LEFT': {
+            alert('Your opponent has left the race. Returning to main menu.');
+            this.exitRaceToMenu();
+            break;
+          }
+
+          case 'ERROR': {
+            errorEl.textContent = data.message;
+            errorEl.style.display = 'block';
+            this.closeMultiplayerSocket();
+            break;
+          }
+
+          default:
+            break;
+        }
+      } catch (err) {
+        console.error('Error handling websocket message:', err);
+      }
+    };
+  }
+
+  closeMultiplayerSocket() {
+    if (this.socket) {
+      if (this.socket.readyState === WebSocket.OPEN) {
+        this.socket.send(JSON.stringify({ type: 'QUIT_RACE' }));
+      }
+      this.socket.close();
+      this.socket = null;
+    }
+    this.cleanupMultiplayer();
+  }
+
+  cleanupMultiplayer() {
+    this.isMultiplayer = false;
+    this.playerIndex = null;
+    this.roomCode = '';
+    this.opponentFinished = false;
+    this.opponentLaps = 0;
+    document.getElementById('mp-hud-status').classList.add('hidden');
+    if (this.opponent) {
+      this.opponent.clear();
+      this.opponent = null;
+    }
+  }
+
+  exitRaceToMenu() {
+    this.resumeRace();
+    this.raceActive = false;
+    audioEngine.setEngineActive(false);
+    this.closeMultiplayerSocket();
+    
+    this.trackManager.generate(this.activeWorldId);
+    this.player.init(this.currentKartColor, this.equippedUpgrades);
+    this.switchScreen('main-menu');
+  }
+
   // --- GARAGE / UPGRADES SHOP UI RENDERING ---
 
   updateGarageShopUI() {
@@ -502,10 +731,15 @@ class GameManager {
       }
     });
 
-    // Update garage performance meters
-    const maxSpeedPercent = this.equippedUpgrades.engine === 'turbo' ? 95 : (this.equippedUpgrades.engine === 'v6' ? 75 : 50);
-    const accelPercent = this.equippedUpgrades.engine === 'turbo' ? 70 : (this.equippedUpgrades.engine === 'v6' ? 85 : 50);
-    const handlingPercent = this.equippedUpgrades.tires === 'sport' ? 90 : (this.equippedUpgrades.tires === 'neon' ? 75 : 55);
+    // Update garage performance meters (fair, equal base physics across all car body styles)
+    const base = { speed: 50, accel: 50, handling: 50 };
+    const engineSpeedBonus = this.equippedUpgrades.engine === 'turbo' ? 30 : (this.equippedUpgrades.engine === 'v6' ? 15 : 0);
+    const engineAccelBonus = this.equippedUpgrades.engine === 'v6' ? 30 : (this.equippedUpgrades.engine === 'turbo' ? 15 : 0);
+    const tiresHandlingBonus = this.equippedUpgrades.tires === 'sport' ? 30 : (this.equippedUpgrades.tires === 'neon' ? 15 : 0);
+
+    const maxSpeedPercent = Math.min(base.speed + engineSpeedBonus, 100);
+    const accelPercent = Math.min(base.accel + engineAccelBonus, 100);
+    const handlingPercent = Math.min(base.handling + tiresHandlingBonus, 100);
     
     document.getElementById('stat-speed-fill').style.width = `${maxSpeedPercent}%`;
     document.getElementById('stat-accel-fill').style.width = `${accelPercent}%`;
@@ -577,15 +811,67 @@ class GameManager {
     this.trackManager.updateLapSign(1);
     document.getElementById('hud-world').innerText = WORLDS.find(w => w.id === this.activeWorldId).name;
     
-    // Build AI Racers (7 total)
+    if (this.isMultiplayer) {
+      // Stagger local player 1 and 2 starting grid positions
+      const startT = this.playerIndex === 1 ? 0.04 : 0.032;
+      const startPt = this.trackManager.curve.getPointAt(startT);
+      const tangent = this.trackManager.curve.getTangentAt(startT);
+      const right = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize();
+      const side = this.playerIndex === 1 ? -1 : 1;
+      
+      this.player.position.copy(startPt).addScaledVector(right, side * 2.0);
+      this.player.position.y += 0.5;
+      this.player.heading = Math.atan2(tangent.x, tangent.z);
+      this.player.closestT = startT;
+      
+      if (this.player.mesh) {
+        this.player.mesh.position.copy(this.player.position);
+        this.player.mesh.rotation.set(0, this.player.heading, 0);
+      }
+      
+      // Hook up local hazard drop broadcasts
+      this.player.onHazardDropped = (hazardType, pos) => {
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({
+            type: 'SPAWN_HAZARD',
+            hazardType,
+            pos: { x: pos.x, y: pos.y, z: pos.z }
+          }));
+        }
+      };
+    }
+
+    // Build AI Racers (7 total) - only in Single Player Mode
     this.clearAiRacers();
-    const colors = ['#06d6a0', '#ff007f', '#8338ec', '#00f2fe', '#ffbe0b', '#e63946', '#ffffff', '#ff9f1c'];
-    const aiColors = colors.filter(c => c.toLowerCase() !== this.currentKartColor.toLowerCase()).slice(0, 7);
-    
-    for (let i = 0; i < 7; i++) {
-      const ai = new AiKart(this.scene, this.trackManager, i + 1, aiColors[i] || '#cccccc');
-      ai.init();
-      this.aiRacers.push(ai);
+    if (!this.isMultiplayer) {
+      const colors = ['#06d6a0', '#ff007f', '#8338ec', '#00f2fe', '#ffbe0b', '#e63946', '#ffffff', '#ff9f1c'];
+      const aiColors = colors.filter(c => c.toLowerCase() !== this.currentKartColor.toLowerCase()).slice(0, 7);
+      
+      for (let i = 0; i < 7; i++) {
+        const ai = new AiKart(this.scene, this.trackManager, i + 1, aiColors[i] || '#cccccc');
+        ai.init();
+        this.aiRacers.push(ai);
+      }
+    } else {
+      // Spawn opponent kart at start
+      if (this.opponent) {
+        const oppT = this.playerIndex === 1 ? 0.032 : 0.04;
+        const oppPt = this.trackManager.curve.getPointAt(oppT);
+        const oppTangent = this.trackManager.curve.getTangentAt(oppT);
+        const oppRight = new THREE.Vector3(-oppTangent.z, 0, oppTangent.x).normalize();
+        const oppSide = this.playerIndex === 1 ? 1 : -1;
+        
+        this.opponent.targetPosition.copy(oppPt).addScaledVector(oppRight, oppSide * 2.0);
+        this.opponent.targetPosition.y += 0.5;
+        this.opponent.targetHeading = Math.atan2(oppTangent.x, oppTangent.z);
+        this.opponent.heading = this.opponent.targetHeading;
+        this.opponent.position.copy(this.opponent.targetPosition);
+        
+        if (this.opponent.mesh) {
+          this.opponent.mesh.position.copy(this.opponent.position);
+          this.opponent.mesh.rotation.set(0, this.opponent.heading, 0);
+        }
+      }
     }
     
     // Countdown timer ticks
@@ -677,18 +963,32 @@ class GameManager {
     this.trackManager.updateLapSign(4); // "FINISH"
     
     // Determine player rank position
-    const racers = [
-      { id: 'player', lap: this.player.completedLaps, t: this.player.closestT },
-      ...this.aiRacers.map(ai => ({ id: `ai_${ai.index}`, lap: ai.completedLaps, t: ai.t }))
-    ];
+    let rank = 1;
+    if (this.isMultiplayer) {
+      if (this.opponentFinished) {
+        rank = 2;
+      } else {
+        rank = 1;
+        // Inform opponent that we finished first
+        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+          this.socket.send(JSON.stringify({ type: 'FINISH_RACE', rank: 1 }));
+        }
+      }
+    } else {
+      const racers = [
+        { id: 'player', lap: this.player.completedLaps, t: this.player.closestT },
+        ...this.aiRacers.map(ai => ({ id: `ai_${ai.index}`, lap: ai.completedLaps, t: ai.t }))
+      ];
+      
+      // Sort by laps then progress t
+      racers.sort((a, b) => {
+        if (b.lap !== a.lap) return b.lap - a.lap;
+        return b.t - a.t;
+      });
+      
+      rank = racers.findIndex(r => r.id === 'player') + 1;
+    }
     
-    // Sort by laps then progress t
-    racers.sort((a, b) => {
-      if (b.lap !== a.lap) return b.lap - a.lap;
-      return b.t - a.t;
-    });
-    
-    const rank = racers.findIndex(r => r.id === 'player') + 1;
     const rankSuffix = ['st', 'nd', 'rd'][rank - 1] || 'th';
     const rankStr = `${rank}${rankSuffix}`;
     
@@ -767,6 +1067,31 @@ class GameManager {
         // Check collectibles and boost collisions
         this.trackManager.checkCollisions(this.player);
         this.updateItemSlotUI();
+
+        // Broadcast local player state to multiplayer opponent
+        if (this.isMultiplayer) {
+          this.syncTimer += deltaTime;
+          if (this.syncTimer >= 0.033) {
+            this.syncTimer = 0;
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+              this.socket.send(JSON.stringify({
+                type: 'SYNC_STATE',
+                position: { x: this.player.position.x, y: this.player.position.y, z: this.player.position.z },
+                heading: this.player.heading,
+                speed: this.player.speed,
+                isDrifting: this.player.isDrifting,
+                driftDirection: this.player.driftDirection,
+                spinTimer: this.player.spinTimer,
+                closestT: this.player.closestT
+              }));
+            }
+          }
+        }
+      }
+
+      // Update opponent kart representation
+      if (this.isMultiplayer && this.opponent) {
+        this.opponent.update(deltaTime);
       }
 
       // 2. Update AI Karts (Runs during countdown too to align them)
@@ -828,6 +1153,14 @@ class GameManager {
         if (oldProgress > 0.85 && lapProgress < 0.15) {
           this.player.completedLaps++;
           this.trackManager.updateLapSign(this.player.completedLaps + 1);
+          
+          if (this.isMultiplayer && this.socket && this.socket.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+              type: 'LAP_COMPLETE',
+              lap: this.player.completedLaps
+            }));
+          }
+
           if (this.player.completedLaps >= 3) {
             this.triggerRaceFinished();
           } else {
@@ -836,17 +1169,32 @@ class GameManager {
         }
         
         // Compute positions ranking
-        const positions = [
-          { id: 'player', lap: this.player.completedLaps, t: this.player.closestT },
-          ...this.aiRacers.map(ai => ({ id: `ai_${ai.index}`, lap: ai.completedLaps, t: ai.t }))
-        ];
-        positions.sort((a, b) => {
-          if (b.lap !== a.lap) return b.lap - a.lap;
-          return b.t - a.t;
-        });
-        const playerRank = positions.findIndex(r => r.id === 'player') + 1;
+        let playerRank = 1;
+        let totalRacers = 1;
+        if (this.isMultiplayer) {
+          totalRacers = 2;
+          const oppT = (this.opponent && this.opponent.closestT !== undefined) ? this.opponent.closestT : 0;
+          if (this.opponentLaps > this.player.completedLaps) {
+            playerRank = 2;
+          } else if (this.opponentLaps === this.player.completedLaps) {
+            if (oppT > this.player.closestT) {
+              playerRank = 2;
+            }
+          }
+        } else {
+          totalRacers = this.aiRacers.length + 1;
+          const positions = [
+            { id: 'player', lap: this.player.completedLaps, t: this.player.closestT },
+            ...this.aiRacers.map(ai => ({ id: `ai_${ai.index}`, lap: ai.completedLaps, t: ai.t }))
+          ];
+          positions.sort((a, b) => {
+            if (b.lap !== a.lap) return b.lap - a.lap;
+            return b.t - a.t;
+          });
+          playerRank = positions.findIndex(r => r.id === 'player') + 1;
+        }
         const suffix = ['st', 'nd', 'rd'][playerRank - 1] || 'th';
-        document.getElementById('hud-pos').innerText = `${playerRank}${suffix} / ${this.aiRacers.length + 1}`;
+        document.getElementById('hud-pos').innerText = `${playerRank}${suffix} / ${totalRacers}`;
         
         // Check if AI racers finish race
         this.aiRacers.forEach(ai => {
