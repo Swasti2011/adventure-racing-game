@@ -527,9 +527,10 @@ class GameManager {
 
     this.socket.onclose = () => {
       this.cleanupMultiplayer();
-      // Only show error if we are on the multiplayer screen
       if (this.activeScreen === 'multiplayer-screen') {
-        errorEl.textContent = 'Disconnected from server.';
+        document.getElementById('mp-initial-panel').style.display = 'block';
+        document.getElementById('mp-waiting-panel').style.display = 'none';
+        errorEl.textContent = 'Disconnected from server. Make sure node server.js is running.';
         errorEl.style.display = 'block';
       } else if (this.activeScreen === 'race-hud') {
         alert('Opponent disconnected or server closed room. Returning to main menu.');
@@ -539,6 +540,12 @@ class GameManager {
 
     this.socket.onerror = (err) => {
       console.error('Socket error:', err);
+      if (this.activeScreen === 'multiplayer-screen') {
+        document.getElementById('mp-initial-panel').style.display = 'block';
+        document.getElementById('mp-waiting-panel').style.display = 'none';
+        errorEl.textContent = 'Connection error: Unable to reach WebSocket server.';
+        errorEl.style.display = 'block';
+      }
     };
 
     this.socket.onmessage = (event) => {
