@@ -492,9 +492,13 @@ class GameManager {
 
     // WebSocket URL resolution logic
     let socketUrl = '';
+    const customUrlInput = document.getElementById('input-custom-socket-url');
+    const customUrl = customUrlInput ? customUrlInput.value.trim() : '';
     const isVercel = window.location.hostname.includes('vercel.app');
     
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    if (customUrl) {
+      socketUrl = customUrl;
+    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       socketUrl = `ws://${window.location.host}`;
     } else if (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('ngrok')) {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
