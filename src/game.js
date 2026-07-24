@@ -556,17 +556,24 @@ class GameManager {
         document.getElementById('mp-initial-panel').style.display = 'none';
         document.getElementById('mp-waiting-panel').style.display = 'block';
         document.getElementById('lbl-room-code').textContent = cleanCode;
+        document.getElementById('lbl-waiting-status').textContent = 'Waiting for player 2 to join...';
       });
 
       this.peer.on('connection', (conn) => {
         this.peerConn = conn;
-        this.setupPeerConnListeners();
         
-        // Notify guest and host simultaneously to start race!
-        setTimeout(() => {
+        const onHostConnected = () => {
+          this.setupPeerConnListeners();
+          // Send OPPONENT_JOINED to guest over the opened data channel
           this.sendNetworkMessage({ type: 'OPPONENT_JOINED', roomCode: cleanCode });
           this.handleNetworkMessage({ type: 'OPPONENT_JOINED', roomCode: cleanCode });
-        }, 300);
+        };
+
+        if (conn.open) {
+          onHostConnected();
+        } else {
+          conn.on('open', onHostConnected);
+        }
       });
 
       this.peer.on('error', (err) => {
@@ -593,8 +600,22 @@ class GameManager {
       }
 
       this.peer.on('open', () => {
+        document.getElementById('mp-initial-panel').style.display = 'none';
+        document.getElementById('mp-waiting-panel').style.display = 'block';
+        document.getElementById('lbl-room-code').textContent = cleanCode;
+        document.getElementById('lbl-waiting-status').textContent = `Connecting to room ${cleanCode}...`;
+
         this.peerConn = this.peer.connect(peerId, { reliable: true });
-        this.setupPeerConnListeners();
+        
+        const onGuestConnected = () => {
+          this.setupPeerConnListeners();
+        };
+
+        if (this.peerConn.open) {
+          onGuestConnected();
+        } else {
+          this.peerConn.on('open', onGuestConnected);
+        }
       });
 
       this.peer.on('error', (err) => {
