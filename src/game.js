@@ -533,10 +533,10 @@ class GameManager {
       if (this.activeScreen === 'multiplayer-screen') {
         document.getElementById('mp-initial-panel').style.display = 'block';
         document.getElementById('mp-waiting-panel').style.display = 'none';
-        errorEl.textContent = 'Disconnected from server. Make sure node server.js is running.';
+        errorEl.textContent = '💡 Multiplayer host not active. Open http://localhost:8080 or play Single Player mode!';
         errorEl.style.display = 'block';
       } else if (this.activeScreen === 'race-hud') {
-        alert('Opponent disconnected or server closed room. Returning to main menu.');
+        alert('Opponent disconnected or room closed. Returning to main menu.');
         this.exitRaceToMenu();
       }
     };
@@ -546,7 +546,7 @@ class GameManager {
       if (this.activeScreen === 'multiplayer-screen') {
         document.getElementById('mp-initial-panel').style.display = 'block';
         document.getElementById('mp-waiting-panel').style.display = 'none';
-        errorEl.textContent = 'Connection error: Unable to reach WebSocket server.';
+        errorEl.textContent = '💡 Unable to reach online room host. Open http://localhost:8080 or enter a custom URL below.';
         errorEl.style.display = 'block';
       }
     };
