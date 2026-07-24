@@ -512,31 +512,42 @@ class GameManager {
     const customUrlInput = document.getElementById('input-custom-socket-url');
     const customUrl = customUrlInput ? customUrlInput.value.trim() : '';
 
-    // If custom URL provided, attempt custom WebSocket server
+    // If custom URL is explicitly entered by user, connect via WebSocket
     if (customUrl) {
       this.initWebSocketMultiplayer(action, roomCode, customUrl);
       return;
     }
 
-    // Default WebRTC PeerJS Path (24/7 Free Serverless Multiplayer)
+    // Default 24/7 WebRTC P2P PeerJS Engine
     if (typeof Peer === 'undefined') {
-      // Fall back to WebSocket if PeerJS script is not loaded
-      this.initWebSocketMultiplayer(action, roomCode);
+      errorEl.textContent = 'Multiplayer library loading... Please try again in 2 seconds.';
+      errorEl.style.display = 'block';
       return;
     }
 
     this.cleanupMultiplayer();
+    const cleanCode = (roomCode || this.generateRandomRoomCode()).toUpperCase().trim();
+    const peerId = `shivukart-room-${cleanCode}`;
+
+    const peerOptions = {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+      }
+    };
 
     if (action === 'create') {
-      const code = this.generateRandomRoomCode();
-      this.roomCode = code;
+      this.roomCode = cleanCode;
       this.playerIndex = 1;
       this.isMultiplayer = true;
 
       try {
-        this.peer = new Peer(`shivukart-v30-${code}`);
+        this.peer = new Peer(peerId, peerOptions);
       } catch (e) {
-        errorEl.textContent = 'Failed to create room. Please try again.';
+        errorEl.textContent = 'Failed to create room. Click CREATE ROOM again.';
         errorEl.style.display = 'block';
         return;
       }
@@ -544,7 +555,7 @@ class GameManager {
       this.peer.on('open', () => {
         document.getElementById('mp-initial-panel').style.display = 'none';
         document.getElementById('mp-waiting-panel').style.display = 'block';
-        document.getElementById('lbl-room-code').textContent = code;
+        document.getElementById('lbl-room-code').textContent = cleanCode;
       });
 
       this.peer.on('connection', (conn) => {
@@ -553,39 +564,42 @@ class GameManager {
         
         // Notify guest that room is established
         setTimeout(() => {
-          this.sendNetworkMessage({ type: 'ROOM_JOINED', roomCode: code, playerIndex: 2 });
+          this.sendNetworkMessage({ type: 'ROOM_JOINED', roomCode: cleanCode, playerIndex: 2 });
           this.handleNetworkMessage({ type: 'OPPONENT_JOINED', opponentIndex: 2 });
-        }, 300);
+        }, 200);
       });
 
       this.peer.on('error', (err) => {
-        console.warn('Peer create error:', err);
-        errorEl.textContent = 'Room creation timed out. Click CREATE ROOM again.';
+        console.warn('Peer host error:', err);
+        if (err.type === 'unavailable-id') {
+          errorEl.textContent = `Room code "${cleanCode}" is already in use. Click CREATE ROOM again for a new code.`;
+        } else {
+          errorEl.textContent = 'Room connection error. Please click CREATE ROOM again.';
+        }
         errorEl.style.display = 'block';
       });
 
     } else if (action === 'join') {
-      const code = roomCode.toUpperCase().trim();
-      this.roomCode = code;
+      this.roomCode = cleanCode;
       this.playerIndex = 2;
       this.isMultiplayer = true;
 
       try {
-        this.peer = new Peer();
+        this.peer = new Peer(peerOptions);
       } catch (e) {
-        errorEl.textContent = 'Failed to initialize connection.';
+        errorEl.textContent = 'Failed to initialize peer connection.';
         errorEl.style.display = 'block';
         return;
       }
 
       this.peer.on('open', () => {
-        this.peerConn = this.peer.connect(`shivukart-v30-${code}`);
+        this.peerConn = this.peer.connect(peerId, { reliable: true });
         this.setupPeerConnListeners();
       });
 
       this.peer.on('error', (err) => {
-        console.warn('Peer join error:', err);
-        errorEl.textContent = 'Room not found. Make sure Room Code matches!';
+        console.warn('Peer guest error:', err);
+        errorEl.textContent = `⚠️ Could not find Room "${cleanCode}". Make sure Host has created the room first!`;
         errorEl.style.display = 'block';
       });
     }
