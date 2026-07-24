@@ -57,6 +57,8 @@ class GameManager {
 
     // Multiplayer fields
     this.socket = null;
+    this.peer = null;
+    this.peerConn = null;
     this.isMultiplayer = false;
     this.playerIndex = null; // 1 or 2
     this.opponent = null; // RemotePlayerKart
@@ -484,38 +486,139 @@ class GameManager {
     }
   }
 
-  // --- MULTIPLAYER ROOM & WEBSOCKET ENGINE ---
+  // --- MULTIPLAYER ROOM & WEBSOCKET/WEBRTC ENGINE ---
+
+  generateRandomRoomCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  sendNetworkMessage(data) {
+    if (this.peerConn && this.peerConn.open) {
+      this.peerConn.send(data);
+    } else if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
+    }
+  }
 
   initMultiplayerSocket(action, roomCode = '') {
     const errorEl = document.getElementById('mp-lobby-error');
     errorEl.style.display = 'none';
 
-    // WebSocket URL resolution logic
-    let socketUrl = '';
     const customUrlInput = document.getElementById('input-custom-socket-url');
     const customUrl = customUrlInput ? customUrlInput.value.trim() : '';
-    const isVercel = window.location.hostname.includes('vercel.app');
-    const isHttps = window.location.protocol === 'https:';
-    
+
+    // If custom URL provided, attempt custom WebSocket server
     if (customUrl) {
-      socketUrl = customUrl;
-    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      socketUrl = `ws://${window.location.host}`;
-    } else if (isVercel) {
-      // Vercel serverless host (HTTPS requires secure WSS or custom tunnel URL)
-      socketUrl = isHttps ? 'wss://localhost:8080' : 'ws://localhost:8080';
-    } else {
-      const protocol = isHttps ? 'wss:' : 'ws:';
-      socketUrl = `${protocol}//${window.location.host}`;
+      this.initWebSocketMultiplayer(action, roomCode, customUrl);
+      return;
     }
+
+    // Default WebRTC PeerJS Path (24/7 Free Serverless Multiplayer)
+    if (typeof Peer === 'undefined') {
+      // Fall back to WebSocket if PeerJS script is not loaded
+      this.initWebSocketMultiplayer(action, roomCode);
+      return;
+    }
+
+    this.cleanupMultiplayer();
+
+    if (action === 'create') {
+      const code = this.generateRandomRoomCode();
+      this.roomCode = code;
+      this.playerIndex = 1;
+      this.isMultiplayer = true;
+
+      try {
+        this.peer = new Peer(`shivukart-v30-${code}`);
+      } catch (e) {
+        errorEl.textContent = 'Failed to create room. Please try again.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      this.peer.on('open', () => {
+        document.getElementById('mp-initial-panel').style.display = 'none';
+        document.getElementById('mp-waiting-panel').style.display = 'block';
+        document.getElementById('lbl-room-code').textContent = code;
+      });
+
+      this.peer.on('connection', (conn) => {
+        this.peerConn = conn;
+        this.setupPeerConnListeners();
+        
+        // Notify guest that room is established
+        setTimeout(() => {
+          this.sendNetworkMessage({ type: 'ROOM_JOINED', roomCode: code, playerIndex: 2 });
+          this.handleNetworkMessage({ type: 'OPPONENT_JOINED', opponentIndex: 2 });
+        }, 300);
+      });
+
+      this.peer.on('error', (err) => {
+        console.warn('Peer create error:', err);
+        errorEl.textContent = 'Room creation timed out. Click CREATE ROOM again.';
+        errorEl.style.display = 'block';
+      });
+
+    } else if (action === 'join') {
+      const code = roomCode.toUpperCase().trim();
+      this.roomCode = code;
+      this.playerIndex = 2;
+      this.isMultiplayer = true;
+
+      try {
+        this.peer = new Peer();
+      } catch (e) {
+        errorEl.textContent = 'Failed to initialize connection.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      this.peer.on('open', () => {
+        this.peerConn = this.peer.connect(`shivukart-v30-${code}`);
+        this.setupPeerConnListeners();
+      });
+
+      this.peer.on('error', (err) => {
+        console.warn('Peer join error:', err);
+        errorEl.textContent = 'Room not found. Make sure Room Code matches!';
+        errorEl.style.display = 'block';
+      });
+    }
+  }
+
+  setupPeerConnListeners() {
+    if (!this.peerConn) return;
+
+    this.peerConn.on('open', () => {
+      if (this.playerIndex === 2) {
+        document.getElementById('mp-initial-panel').style.display = 'none';
+        document.getElementById('mp-waiting-panel').style.display = 'block';
+        document.getElementById('lbl-room-code').textContent = this.roomCode;
+      }
+    });
+
+    this.peerConn.on('data', (data) => {
+      this.handleNetworkMessage(data);
+    });
+
+    this.peerConn.on('close', () => {
+      this.handleNetworkMessage({ type: 'OPPONENT_LEFT' });
+    });
+  }
+
+  initWebSocketMultiplayer(action, roomCode = '', customUrl = '') {
+    const errorEl = document.getElementById('mp-lobby-error');
+    let socketUrl = customUrl || (window.location.protocol === 'https:' ? `wss://${window.location.host}` : `ws://${window.location.host}`);
     
     try {
       this.socket = new WebSocket(socketUrl);
     } catch (e) {
-      console.warn("WebSocket init error:", e);
-      errorEl.textContent = isVercel
-        ? 'Vercel is 24/7 static. For multiplayer, enter a Tunnel URL below or open http://localhost:8080.'
-        : 'Failed to connect to multiplayer server.';
+      errorEl.textContent = 'WebSocket connection failed.';
       errorEl.style.display = 'block';
       return;
     }
@@ -533,132 +636,122 @@ class GameManager {
       if (this.activeScreen === 'multiplayer-screen') {
         document.getElementById('mp-initial-panel').style.display = 'block';
         document.getElementById('mp-waiting-panel').style.display = 'none';
-        errorEl.textContent = '💡 Multiplayer host not active. Open http://localhost:8080 or play Single Player mode!';
+        errorEl.textContent = 'Disconnected from server.';
         errorEl.style.display = 'block';
       } else if (this.activeScreen === 'race-hud') {
-        alert('Opponent disconnected or room closed. Returning to main menu.');
+        alert('Opponent disconnected. Returning to main menu.');
         this.exitRaceToMenu();
-      }
-    };
-
-    this.socket.onerror = (err) => {
-      console.error('Socket error:', err);
-      if (this.activeScreen === 'multiplayer-screen') {
-        document.getElementById('mp-initial-panel').style.display = 'block';
-        document.getElementById('mp-waiting-panel').style.display = 'none';
-        errorEl.textContent = '💡 Unable to reach online room host. Open http://localhost:8080 or enter a custom URL below.';
-        errorEl.style.display = 'block';
       }
     };
 
     this.socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
-        switch (data.type) {
-          case 'ROOM_CREATED': {
-            this.roomCode = data.roomCode;
-            this.playerIndex = data.playerIndex;
-            this.isMultiplayer = true;
-
-            document.getElementById('mp-initial-panel').style.display = 'none';
-            document.getElementById('mp-waiting-panel').style.display = 'block';
-            document.getElementById('lbl-room-code').textContent = data.roomCode;
-            break;
-          }
-
-          case 'ROOM_JOINED': {
-            this.roomCode = data.roomCode;
-            this.playerIndex = data.playerIndex;
-            this.isMultiplayer = true;
-            
-            document.getElementById('mp-initial-panel').style.display = 'none';
-            document.getElementById('mp-waiting-panel').style.display = 'block';
-            document.getElementById('lbl-room-code').textContent = data.roomCode;
-            break;
-          }
-
-          case 'OPPONENT_JOINED': {
-            // Both clients are connected! Start game.
-            document.getElementById('mp-hud-status').classList.remove('hidden');
-            document.getElementById('mp-hud-status-text').textContent = `ROOM: ${this.roomCode}`;
-            
-            // Instantly transition to HUD and start race!
-            this.opponentFinished = false;
-            this.opponentLaps = 0;
-            
-            // Spawn the opponent
-            if (this.opponent) {
-              this.opponent.clear();
-            }
-            this.opponent = new RemotePlayerKart(this.scene);
-            
-            // Player 1 is red, Player 2 is pink (or opposite of current local color)
-            let oppColor = '#ff007f';
-            if (this.playerIndex === 2) {
-              oppColor = '#e63946';
-            }
-            this.opponent.init(oppColor);
-
-            this.startRaceCountdown();
-            break;
-          }
-
-          case 'SYNC_STATE': {
-            if (this.opponent) {
-              this.opponent.updateState(data);
-            }
-            break;
-          }
-
-          case 'SPAWN_HAZARD': {
-            if (this.trackManager) {
-              this.trackManager.dropHazard(data.hazardType, new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z));
-            }
-            break;
-          }
-
-          case 'COLLECT_ITEM': {
-            if (this.trackManager) {
-              this.trackManager.collectItemBoxByPosition(data.pos.x, data.pos.y, data.pos.z);
-            }
-            break;
-          }
-
-          case 'LAP_COMPLETE': {
-            this.opponentLaps = data.lap;
-            break;
-          }
-
-          case 'FINISH_RACE': {
-            this.opponentFinished = true;
-            this.opponentRank = data.rank;
-            break;
-          }
-
-          case 'OPPONENT_LEFT': {
-            alert('Your opponent has left the race. Returning to main menu.');
-            this.exitRaceToMenu();
-            break;
-          }
-
-          case 'ERROR': {
-            errorEl.textContent = data.message;
-            errorEl.style.display = 'block';
-            this.closeMultiplayerSocket();
-            break;
-          }
-
-          default:
-            break;
-        }
+        this.handleNetworkMessage(data);
       } catch (err) {
-        console.error('Error handling websocket message:', err);
+        console.error('Error parsing socket data:', err);
       }
     };
   }
 
+  handleNetworkMessage(data) {
+    const errorEl = document.getElementById('mp-lobby-error');
+    
+    switch (data.type) {
+      case 'ROOM_CREATED':
+      case 'ROOM_JOINED': {
+        this.roomCode = data.roomCode;
+        this.playerIndex = data.playerIndex;
+        this.isMultiplayer = true;
+
+        document.getElementById('mp-initial-panel').style.display = 'none';
+        document.getElementById('mp-waiting-panel').style.display = 'block';
+        document.getElementById('lbl-room-code').textContent = data.roomCode;
+        break;
+      }
+
+      case 'OPPONENT_JOINED': {
+        document.getElementById('mp-hud-status').classList.remove('hidden');
+        document.getElementById('mp-hud-status-text').textContent = `ROOM: ${this.roomCode}`;
+        
+        this.opponentFinished = false;
+        this.opponentLaps = 0;
+        
+        if (this.opponent) {
+          this.opponent.clear();
+        }
+        this.opponent = new RemotePlayerKart(this.scene);
+        
+        let oppColor = '#ff007f';
+        if (this.playerIndex === 2) {
+          oppColor = '#e63946';
+        }
+        this.opponent.init(oppColor);
+
+        this.startRaceCountdown();
+        break;
+      }
+
+      case 'SYNC_STATE': {
+        if (this.opponent) {
+          this.opponent.updateState(data);
+        }
+        break;
+      }
+
+      case 'SPAWN_HAZARD': {
+        if (this.trackManager) {
+          this.trackManager.dropHazard(data.hazardType, new THREE.Vector3(data.pos.x, data.pos.y, data.pos.z));
+        }
+        break;
+      }
+
+      case 'COLLECT_ITEM': {
+        if (this.trackManager) {
+          this.trackManager.collectItemBoxByPosition(data.pos.x, data.pos.y, data.pos.z);
+        }
+        break;
+      }
+
+      case 'LAP_COMPLETE': {
+        this.opponentLaps = data.lap;
+        break;
+      }
+
+      case 'FINISH_RACE': {
+        this.opponentFinished = true;
+        this.opponentRank = data.rank;
+        break;
+      }
+
+      case 'OPPONENT_LEFT': {
+        alert('Your opponent has left the race. Returning to main menu.');
+        this.exitRaceToMenu();
+        break;
+      }
+
+      case 'ERROR': {
+        errorEl.textContent = data.message;
+        errorEl.style.display = 'block';
+        this.closeMultiplayerSocket();
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
   closeMultiplayerSocket() {
+    if (this.peerConn) {
+      this.sendNetworkMessage({ type: 'QUIT_RACE' });
+      this.peerConn.close();
+      this.peerConn = null;
+    }
+    if (this.peer) {
+      this.peer.destroy();
+      this.peer = null;
+    }
     if (this.socket) {
       if (this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify({ type: 'QUIT_RACE' }));
@@ -675,6 +768,14 @@ class GameManager {
     this.roomCode = '';
     this.opponentFinished = false;
     this.opponentLaps = 0;
+    if (this.peerConn) {
+      this.peerConn.close();
+      this.peerConn = null;
+    }
+    if (this.peer) {
+      this.peer.destroy();
+      this.peer = null;
+    }
     document.getElementById('mp-hud-status').classList.add('hidden');
     if (this.opponent) {
       this.opponent.clear();
@@ -856,13 +957,11 @@ class GameManager {
       
       // Hook up local hazard drop broadcasts
       this.player.onHazardDropped = (hazardType, pos) => {
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-          this.socket.send(JSON.stringify({
-            type: 'SPAWN_HAZARD',
-            hazardType,
-            pos: { x: pos.x, y: pos.y, z: pos.z }
-          }));
-        }
+        this.sendNetworkMessage({
+          type: 'SPAWN_HAZARD',
+          hazardType,
+          pos: { x: pos.x, y: pos.y, z: pos.z }
+        });
       };
     }
 
@@ -995,9 +1094,7 @@ class GameManager {
       } else {
         rank = 1;
         // Inform opponent that we finished first
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-          this.socket.send(JSON.stringify({ type: 'FINISH_RACE', rank: 1 }));
-        }
+        this.sendNetworkMessage({ type: 'FINISH_RACE', rank: 1 });
       }
     } else {
       const racers = [
@@ -1098,18 +1195,16 @@ class GameManager {
           this.syncTimer += deltaTime;
           if (this.syncTimer >= 0.033) {
             this.syncTimer = 0;
-            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-              this.socket.send(JSON.stringify({
-                type: 'SYNC_STATE',
-                position: { x: this.player.position.x, y: this.player.position.y, z: this.player.position.z },
-                heading: this.player.heading,
-                speed: this.player.speed,
-                isDrifting: this.player.isDrifting,
-                driftDirection: this.player.driftDirection,
-                spinTimer: this.player.spinTimer,
-                closestT: this.player.closestT
-              }));
-            }
+            this.sendNetworkMessage({
+              type: 'SYNC_STATE',
+              position: { x: this.player.position.x, y: this.player.position.y, z: this.player.position.z },
+              heading: this.player.heading,
+              speed: this.player.speed,
+              isDrifting: this.player.isDrifting,
+              driftDirection: this.player.driftDirection,
+              spinTimer: this.player.spinTimer,
+              closestT: this.player.closestT
+            });
           }
         }
       }
@@ -1179,11 +1274,11 @@ class GameManager {
           this.player.completedLaps++;
           this.trackManager.updateLapSign(this.player.completedLaps + 1);
           
-          if (this.isMultiplayer && this.socket && this.socket.readyState === WebSocket.OPEN) {
-            this.socket.send(JSON.stringify({
+          if (this.isMultiplayer) {
+            this.sendNetworkMessage({
               type: 'LAP_COMPLETE',
               lap: this.player.completedLaps
-            }));
+            });
           }
 
           if (this.player.completedLaps >= 3) {
