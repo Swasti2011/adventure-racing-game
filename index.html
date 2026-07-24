@@ -43,6 +43,9 @@
   </div>
   <script>
     window.addEventListener('error', function(e) {
+      if (e.message && (e.message.includes('WebSocket') || e.message.includes('SecurityError') || e.message.includes('Script error'))) {
+        return; // Suppress harmless network/socket connection errors
+      }
       document.getElementById('error-overlay').style.display = 'block';
       document.getElementById('error-msg').textContent += 
         '\n❌ Error: ' + e.message + 
@@ -50,6 +53,9 @@
         '\n🥞 Stack:\n' + (e.error ? e.error.stack : 'No stack trace') + '\n';
     });
     window.addEventListener('unhandledrejection', function(e) {
+      if (e.reason && (String(e.reason).includes('WebSocket') || String(e.reason).includes('SecurityError'))) {
+        return; // Suppress harmless network/socket connection rejections
+      }
       document.getElementById('error-overlay').style.display = 'block';
       document.getElementById('error-msg').textContent += 
         '\n❌ Unhandled Promise Rejection: ' + e.reason + 

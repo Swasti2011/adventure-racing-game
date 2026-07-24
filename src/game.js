@@ -495,27 +495,26 @@ class GameManager {
     const customUrlInput = document.getElementById('input-custom-socket-url');
     const customUrl = customUrlInput ? customUrlInput.value.trim() : '';
     const isVercel = window.location.hostname.includes('vercel.app');
+    const isHttps = window.location.protocol === 'https:';
     
     if (customUrl) {
       socketUrl = customUrl;
     } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       socketUrl = `ws://${window.location.host}`;
-    } else if (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('ngrok')) {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      socketUrl = `${protocol}//${window.location.host}`;
     } else if (isVercel) {
-      // Vercel serverless host fallback to local server port 8080
-      socketUrl = 'ws://localhost:8080';
+      // Vercel serverless host (HTTPS requires secure WSS or custom tunnel URL)
+      socketUrl = isHttps ? 'wss://localhost:8080' : 'ws://localhost:8080';
     } else {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const protocol = isHttps ? 'wss:' : 'ws:';
       socketUrl = `${protocol}//${window.location.host}`;
     }
     
     try {
       this.socket = new WebSocket(socketUrl);
     } catch (e) {
+      console.warn("WebSocket init error:", e);
       errorEl.textContent = isVercel
-        ? 'Vercel is static-only. Open http://localhost:8080 or run "npx localtunnel --port 8080".'
+        ? 'Vercel is 24/7 static. For multiplayer, enter a Tunnel URL below or open http://localhost:8080.'
         : 'Failed to connect to multiplayer server.';
       errorEl.style.display = 'block';
       return;
