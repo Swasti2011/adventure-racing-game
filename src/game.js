@@ -490,14 +490,29 @@ class GameManager {
     const errorEl = document.getElementById('mp-lobby-error');
     errorEl.style.display = 'none';
 
-    // WebSocket URL (secure wss or standard ws depending on host)
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socketUrl = `${protocol}//${window.location.host}`;
+    // WebSocket URL resolution logic
+    let socketUrl = '';
+    const isVercel = window.location.hostname.includes('vercel.app');
+    
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      socketUrl = `ws://${window.location.host}`;
+    } else if (window.location.hostname.includes('loca.lt') || window.location.hostname.includes('ngrok')) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socketUrl = `${protocol}//${window.location.host}`;
+    } else if (isVercel) {
+      // Vercel serverless host fallback to local server port 8080
+      socketUrl = 'ws://localhost:8080';
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socketUrl = `${protocol}//${window.location.host}`;
+    }
     
     try {
       this.socket = new WebSocket(socketUrl);
     } catch (e) {
-      errorEl.textContent = 'Failed to connect to multiplayer server.';
+      errorEl.textContent = isVercel
+        ? 'Vercel is static-only. Open http://localhost:8080 or run "npx localtunnel --port 8080".'
+        : 'Failed to connect to multiplayer server.';
       errorEl.style.display = 'block';
       return;
     }
