@@ -957,7 +957,14 @@ class GameManager {
     const activeWorld = WORLDS.find(w => w.id === this.activeWorldId) || WORLDS[0];
     audioEngine.setTheme(activeWorld.baseTheme || activeWorld.id);
     
-    // Reset player
+    // Reset player & input state explicitly
+    if (this.player && this.player.keys) {
+      this.player.keys.forward = false;
+      this.player.keys.backward = false;
+      this.player.keys.left = false;
+      this.player.keys.right = false;
+      this.player.keys.drift = false;
+    }
     this.player.reset();
     this.player.coinsCount = 0;
     this.updateItemSlotUI();

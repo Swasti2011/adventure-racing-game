@@ -785,6 +785,13 @@ export class PlayerKart {
   }
 
   reset() {
+    this.keys = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+      drift: false
+    };
     this.position.set(0, 0.5, 0);
     this.velocity.set(0, 0, 0);
     this.speed = 0;
@@ -792,7 +799,7 @@ export class PlayerKart {
     this.verticalVelocity = 0;
     this.isGrounded = true;
     this.completedLaps = 0;
-    this.closestT = 0;
+    this.closestT = 0.04;
     this.isDrifting = false;
     this.driftCharge = 0;
     this.boostTimer = 0;
@@ -1114,14 +1121,16 @@ export class PlayerKart {
       }
     }
     
-    // Apply steering direction
+    // Apply steering direction (Only turn when kart is moving or actively driving)
     let actualSteer = turnDir;
     if (this.isDrifting) {
       // Locked drift angle slides
       actualSteer = this.driftDirection * 0.95;
     }
     
-    this.heading += actualSteer * steerStrength * deltaTime;
+    if (Math.abs(this.speed) > 0.5 || this.keys.forward || this.keys.backward) {
+      this.heading += actualSteer * steerStrength * deltaTime;
+    }
     
     // 4. Calculate Velocity Vector
     const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.heading);
@@ -1216,11 +1225,20 @@ export class PlayerKart {
   }
 
   getClosestT(position) {
-    let bestT = 0;
+    let bestT = this.closestT || 0.04;
     let minDist = Infinity;
-    const samples = 150;
+    const samples = 120;
+    
+    // If closestT is already established, search locally (±0.25 range) to avoid jumping to nearby track loops
+    let minRange = 0;
+    let maxRange = 1.0;
+    if (this.closestT !== undefined && this.closestT !== null) {
+      minRange = Math.max(0, this.closestT - 0.25);
+      maxRange = Math.min(1.0, this.closestT + 0.25);
+    }
+    
     for (let i = 0; i <= samples; i++) {
-      const t = i / samples;
+      const t = minRange + ((maxRange - minRange) * (i / samples));
       const pt = this.track.curve.getPointAt(t);
       const dist = pt.distanceTo(position);
       if (dist < minDist) {
