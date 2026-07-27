@@ -1322,13 +1322,16 @@ class GameManager {
         let totalRacers = 1;
         if (this.isMultiplayer) {
           totalRacers = 2;
+          const playerTotalProgress = (this.player.completedLaps * 1.0) + (this.player.closestT || 0);
           const oppT = (this.opponent && this.opponent.closestT !== undefined) ? this.opponent.closestT : 0;
-          if (this.opponentLaps > this.player.completedLaps) {
+          const oppTotalProgress = ((this.opponentLaps || 0) * 1.0) + oppT;
+
+          if (this.opponentFinished && (this.opponentLaps >= 3) && (this.player.completedLaps < 3)) {
             playerRank = 2;
-          } else if (this.opponentLaps === this.player.completedLaps) {
-            if (oppT > this.player.closestT) {
-              playerRank = 2;
-            }
+          } else if (oppTotalProgress > playerTotalProgress) {
+            playerRank = 2;
+          } else {
+            playerRank = 1;
           }
         } else {
           totalRacers = this.aiRacers.length + 1;
