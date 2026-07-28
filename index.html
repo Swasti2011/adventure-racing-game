@@ -81,8 +81,29 @@
       </div>
     </div>
 
+    <!-- FIRST-TIME / EDIT PLAYER NAME MODAL -->
+    <div id="name-modal" class="screen-overlay-modal" style="display:none;">
+      <div class="glass-card name-modal-box">
+        <h2 class="neon-text-blue">WELCOME RACER! 🏎️</h2>
+        <p class="modal-subtext">Enter your driver name to display above your kart:</p>
+        <div class="input-group" style="margin: 15px 0;">
+          <input type="text" id="input-player-name" placeholder="Enter Your Name..." maxlength="14" autocomplete="off" />
+        </div>
+        <button id="btn-save-name" class="btn btn-primary neon-btn-blue" style="width:100%; margin-top:5px;">START RACING 🏁</button>
+      </div>
+    </div>
+
     <!-- 2. MAIN MENU -->
     <div id="main-menu" class="screen">
+      <!-- Top Profile Bar -->
+      <div class="top-profile-bar">
+        <div class="profile-badge" id="btn-edit-name-badge" title="Click to edit your driver name">
+          <span class="profile-icon">🏎️</span>
+          <span id="display-player-name" class="profile-name">Racer 1</span>
+          <span class="edit-icon">✏️</span>
+        </div>
+      </div>
+
       <div class="logo-container">
         <h1 class="logo-title neon-text-blue">SHIVU KART</h1>
         <h2 class="logo-subtitle neon-text-gold">ADVENTURE</h2>

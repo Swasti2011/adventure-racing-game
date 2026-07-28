@@ -2,13 +2,17 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { audioEngine } from './audio.js';
 import { TrackManager, WORLDS } from './track.js';
-import { PlayerKart, AiKart, RemotePlayerKart } from './car.js';
+import { PlayerKart, AiKart, RemotePlayerKart, createNameTagSprite } from './car.js';
 
 class GameManager {
   constructor() {
     this.canvas = document.getElementById('game-canvas');
     this.activeScreen = 'loading-screen';
     
+    // Driver / Player Name
+    this.playerName = localStorage.getItem('kart_player_name') || '';
+    this.opponentName = 'Player 2';
+
     // Three.js Core
     this.scene = null;
     this.camera = null;
@@ -156,7 +160,7 @@ class GameManager {
     
     // 8. Generate Default Mushroom Valley for Menu background
     this.trackManager.generate('mushroom');
-    this.player.init(this.currentKartColor, this.equippedUpgrades);
+    this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName || 'Racer 1');
     
     // Place camera pointing at the starting kart
     this.positionCameraForMenu();
@@ -172,6 +176,10 @@ class GameManager {
 
   loadState() {
     try {
+      const savedName = localStorage.getItem('kart_player_name');
+      if (savedName) this.playerName = savedName;
+      else this.playerName = '';
+
       const savedCoins = localStorage.getItem('kart_coins');
       if (savedCoins !== null) this.coins = parseInt(savedCoins, 10);
       
@@ -188,6 +196,12 @@ class GameManager {
       if (savedEquipped !== null) this.equippedUpgrades = JSON.parse(savedEquipped);
     } catch (e) {
       console.warn("localStorage loading failed, using defaults:", e);
+    }
+
+    if (!this.playerName) {
+      document.getElementById('name-modal').style.display = 'flex';
+    } else {
+      document.getElementById('display-player-name').innerText = this.playerName;
     }
     
     // Update garage displays
@@ -292,6 +306,29 @@ class GameManager {
 
     // --- BUTTONS ACTIONS ---
     
+    // Driver Name Modal Actions
+    const saveNameBtn = document.getElementById('btn-save-name');
+    if (saveNameBtn) {
+      saveNameBtn.addEventListener('click', () => {
+        const nameInput = document.getElementById('input-player-name').value.trim();
+        this.playerName = nameInput || 'Racer 1';
+        localStorage.setItem('kart_player_name', this.playerName);
+        document.getElementById('display-player-name').innerText = this.playerName;
+        document.getElementById('name-modal').style.display = 'none';
+        if (this.player) {
+          this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
+        }
+      });
+    }
+
+    const editNameBtn = document.getElementById('btn-edit-name-badge');
+    if (editNameBtn) {
+      editNameBtn.addEventListener('click', () => {
+        document.getElementById('input-player-name').value = this.playerName;
+        document.getElementById('name-modal').style.display = 'flex';
+      });
+    }
+
     // Audio toggles
     document.getElementById('btn-toggle-audio').addEventListener('click', () => {
       audioEngine.init();
@@ -355,7 +392,7 @@ class GameManager {
     // Garage Back button
     document.getElementById('btn-garage-back').addEventListener('click', () => {
       // Re-init player kart model to apply changes cleanly
-      this.player.init(this.currentKartColor, this.equippedUpgrades);
+      this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
       this.switchScreen('main-menu');
     });
 
@@ -409,7 +446,7 @@ class GameManager {
         this.saveState();
         
         // Re-visualize immediately in garage scene
-        this.player.init(this.currentKartColor, this.equippedUpgrades);
+        this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
         this.positionCameraForGarage();
       });
     });
@@ -705,6 +742,11 @@ class GameManager {
         
         this.opponentFinished = false;
         this.opponentLaps = 0;
+        if (data.playerName) {
+          this.opponentName = data.playerName;
+        } else {
+          this.opponentName = this.playerIndex === 1 ? 'Player 2' : 'Player 1';
+        }
         
         if (this.opponent) {
           this.opponent.clear();
@@ -717,6 +759,11 @@ class GameManager {
         }
         this.opponent.init(oppColor);
 
+        // Add 3D Name Tag sprite to Opponent Kart
+        if (this.opponent.mesh) {
+          this.opponent.mesh.add(createNameTagSprite(this.opponentName, '#ff007f'));
+        }
+
         this.startRaceCountdown();
         break;
       }
@@ -724,8 +771,17 @@ class GameManager {
       case 'SYNC_STATE': {
         if (this.opponent) {
           this.opponent.updateState(data);
+          if (data.playerName && data.playerName !== this.opponentName) {
+            this.opponentName = data.playerName;
+            if (this.opponent.mesh) {
+              const oldTag = this.opponent.mesh.children.find(c => c.userData && c.userData.isNameTag);
+              if (oldTag) this.opponent.mesh.remove(oldTag);
+              this.opponent.mesh.add(createNameTagSprite(this.opponentName, '#ff007f'));
+            }
+          }
         }
         break;
+      }
       }
 
       case 'SPAWN_HAZARD': {
@@ -858,7 +914,7 @@ class GameManager {
         clone.addEventListener('click', () => {
           this.equippedUpgrades[type] = id;
           this.saveState();
-          this.player.init(this.currentKartColor, this.equippedUpgrades);
+          this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
           this.updateGarageShopUI();
           this.positionCameraForGarage();
         });
@@ -875,7 +931,7 @@ class GameManager {
             this.equippedUpgrades[type] = id;
             this.saveState();
             
-            this.player.init(this.currentKartColor, this.equippedUpgrades);
+            this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
             this.updateGarageShopUI();
             this.positionCameraForGarage();
           });
@@ -928,7 +984,7 @@ class GameManager {
         card.addEventListener('click', () => {
           this.activeWorldId = world.id;
           this.trackManager.generate(this.activeWorldId);
-          this.player.init(this.currentKartColor, this.equippedUpgrades);
+          this.player.init(this.currentKartColor, this.equippedUpgrades, this.playerName);
           this.populateWorldsGrid();
         });
       }
@@ -1239,7 +1295,8 @@ class GameManager {
               isDrifting: this.player.isDrifting,
               driftDirection: this.player.driftDirection,
               spinTimer: this.player.spinTimer,
-              closestT: this.player.closestT
+              closestT: this.player.closestT,
+              playerName: this.playerName
             });
           }
         }

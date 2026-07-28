@@ -78,6 +78,76 @@ body, html {
   opacity: 1;
 }
 
+/* Screen Overlay Modal (Name Prompt) */
+.screen-overlay-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99;
+  background: rgba(8, 10, 18, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+  animation: fadeIn 0.3s ease;
+}
+
+.name-modal-box {
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  border: 1px solid var(--color-neon-blue);
+  box-shadow: 0 0 30px rgba(0, 242, 254, 0.25);
+}
+
+.modal-subtext {
+  color: var(--color-text-gray);
+  font-size: 14px;
+  margin-top: 6px;
+}
+
+/* Top Profile Badge in Main Menu */
+.top-profile-bar {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  z-index: 15;
+}
+
+.profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(15, 17, 26, 0.85);
+  border: 1px solid var(--color-neon-blue);
+  padding: 8px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
+  transition: all 0.2s ease;
+}
+
+.profile-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.4);
+  background: rgba(25, 30, 48, 0.95);
+}
+
+.profile-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.edit-icon {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
 /* Glassmorphism styling */
 .glass-card {
   background: var(--color-bg-glass);
