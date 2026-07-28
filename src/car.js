@@ -1,52 +1,5 @@
 import * as THREE from 'three';
 
-export function createNameTagSprite(nameText, badgeColor = '#00f2fe') {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-
-  // Draw sleek pill background badge
-  ctx.fillStyle = 'rgba(11, 12, 16, 0.85)';
-  ctx.strokeStyle = badgeColor;
-  ctx.lineWidth = 6;
-  
-  const x = 16, y = 16, w = 480, h = 96, r = 24;
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // Draw Name Text with glowing shadow
-  ctx.font = '900 42px "Outfit", "Segoe UI", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = badgeColor;
-  ctx.shadowBlur = 12;
-  ctx.fillText(nameText, 256, 64);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.needsUpdate = true;
-
-  const spriteMaterial = new THREE.SpriteMaterial({
-    map: texture,
-    transparent: true,
-    depthTest: false
-  });
-
-  const sprite = new THREE.Sprite(spriteMaterial);
-  sprite.scale.set(4.2, 1.05, 1.0);
-  sprite.position.set(0, 2.8, 0); // Positioned floating above the kart roof
-  sprite.userData.isNameTag = true;
-  return sprite;
-}
-
 // Procedurally builds a 3D Low-Poly Driver Character (e.g. Mario) sitting in the kart
 function createDriverMesh(colorPreset) {
   const driverGroup = new THREE.Group();
@@ -811,12 +764,11 @@ export class PlayerKart {
   }
 
   // Setup / Rebuild the Kart Visual Model
-  init(color, upgrades = {}, name = 'Racer 1') {
+  init(color, upgrades = {}) {
     if (this.mesh) this.scene.remove(this.mesh);
     
     this.colorPreset = color;
     this.upgrades = upgrades;
-    this.driverName = name || 'Racer 1';
     
     // All car bodies share fair, equal base performance physics (purely visual 3D body styles)
     const base = { speed: 1.00, accel: 1.00, handling: 1.00 };
@@ -827,11 +779,6 @@ export class PlayerKart {
     this.handlingModifier = base.handling * (upgrades.tires === 'sport' ? 1.35 : (upgrades.tires === 'neon' ? 1.2 : 1.0));
     
     this.mesh = createKartMesh(this.colorPreset, this.upgrades);
-    
-    // Attach 3D Name Tag sprite floating above player's kart
-    this.nameTagSprite = createNameTagSprite(this.driverName, '#00f2fe');
-    this.mesh.add(this.nameTagSprite);
-
     this.scene.add(this.mesh);
     
     this.reset();
@@ -1356,11 +1303,6 @@ export class AiKart {
     
     this.mesh = createKartMesh(this.color, { car: randomCar });
     
-    // Attach 3D Name Tag sprite floating above AI Bot kart (Bot 1, Bot 2, Bot 3, etc.)
-    const botName = `Bot ${this.index}`;
-    this.nameTagSprite = createNameTagSprite(botName, '#ffbe0b');
-    this.mesh.add(this.nameTagSprite);
-
     // Standard scaling (slightly smaller than player)
     this.mesh.scale.set(0.95, 0.95, 0.95);
     this.scene.add(this.mesh);
