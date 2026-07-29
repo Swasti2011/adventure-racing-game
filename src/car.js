@@ -1225,20 +1225,20 @@ export class PlayerKart {
   }
 
   getClosestT(position) {
-    let bestT = this.closestT || 0.04;
+    let bestT = (this.closestT !== undefined && this.closestT !== null) ? this.closestT : 0.04;
     let minDist = Infinity;
     const samples = 120;
     
-    // If closestT is already established, search locally (±0.25 range) to avoid jumping to nearby track loops
-    let minRange = 0;
-    let maxRange = 1.0;
-    if (this.closestT !== undefined && this.closestT !== null) {
-      minRange = Math.max(0, this.closestT - 0.25);
-      maxRange = Math.min(1.0, this.closestT + 0.25);
-    }
+    // Search around current closestT (±0.25 range) with periodic wrap-around [0.0 <-> 1.0]
+    const centerT = bestT;
     
     for (let i = 0; i <= samples; i++) {
-      const t = minRange + ((maxRange - minRange) * (i / samples));
+      let t = (centerT - 0.25) + (0.50 * (i / samples));
+      
+      // Periodic wrap-around for circular tracks
+      if (t < 0) t += 1.0;
+      if (t > 1.0) t -= 1.0;
+      
       const pt = this.track.curve.getPointAt(t);
       const dist = pt.distanceTo(position);
       if (dist < minDist) {
