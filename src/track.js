@@ -288,8 +288,8 @@ export class TrackManager {
     const indices = [];
     
     const count = this.segmentsCount;
-    // Calculate Frenet frames along spline
-    const frames = this.curve.computeFrenetFrames(count, false);
+    // Calculate Frenet frames along closed spline
+    const frames = this.curve.computeFrenetFrames(count, true);
     
     const barrierMatTheme = new THREE.MeshPhongMaterial({ color: config.themeColor || '#e63946', flatShading: true });
     const barrierMatAccent = new THREE.MeshPhongMaterial({ color: config.accentColor || '#ffffff', flatShading: true });
@@ -1323,13 +1323,13 @@ export class TrackManager {
     colR.castShadow = true;
     gantryGroup.add(colR);
     
-    // Horizontal Beam
+    // Horizontal Beam (Crosswise perpendicular to track)
     const beamGeom = new THREE.BoxGeometry(this.roadWidth + 3, 0.6, 0.6);
     const beam = new THREE.Mesh(beamGeom, pillarMat);
     beam.position.copy(centerPt);
     beam.position.y += 11.5;
-    beam.lookAt(centerPt.clone().add(tangent));
-    beam.rotation.y += Math.PI / 2; // crosswise
+    const beamAngle = Math.atan2(binormal.x, binormal.z);
+    beam.rotation.set(0, beamAngle, 0);
     gantryGroup.add(beam);
     
     // Cloud
@@ -1415,9 +1415,9 @@ export class TrackManager {
     board.position.set(0, -0.2, 0);
     signGroup.add(board);
     
-    // Align sign facing along track tangent
-    signGroup.lookAt(centerPt.clone().add(tangent));
-    signGroup.rotation.y += Math.PI / 2; // face oncoming karts
+    // Align sign facing oncoming karts along track tangent
+    const trackAngle = Math.atan2(tangent.x, tangent.z);
+    signGroup.rotation.set(0, trackAngle, 0);
     
     gantryGroup.add(signGroup);
     this.scene.add(gantryGroup);
